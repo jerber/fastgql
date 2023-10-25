@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "fastgql"
 version = "0.1.1"
-exclude = ["fastgql/tests/**", "fastgql/docs/**"]
+exclude = []
 description = "The easiest, fastest python GraphQL framework."
 authors = ["Jeremy Berman <jerber@sas.upenn.edu>"]
 license = "MIT"
@@ -9,6 +9,23 @@ readme = "README.md"
 homepage = "https://github.com/jerber/fastgql"
 repository = "https://github.com/jerber/fastgql"
 documentation = "https://jerber.github.io/fastgql/"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Database :: Database Engines/Servers",
+    "Topic :: Internet",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
