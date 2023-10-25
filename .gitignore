@@ -1,0 +1,9 @@
+.mypy_cache
+.coverage
+htmlcov
+*.DS_Store*
+.run
+*.idea*
+dist*
+__pycache__*
+venv*

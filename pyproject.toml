@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "fastgql"
+version = "0.1.1"
+exclude = ["fastgql/tests/**", "fastgql/docs/**"]
+description = "The easiest, fastest python GraphQL framework."
+authors = ["Jeremy Berman <jerber@sas.upenn.edu>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/jerber/fastgql"
+repository = "https://github.com/jerber/fastgql"
+documentation = "https://jerber.github.io/fastgql/"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic = "^2.4.2"
+fastapi = "^0.104.0"
+edgedb = { version = "^1.7.0", optional = true }
+
+[tool.poetry.extras]
+edgedb = ["edgedb"]
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
