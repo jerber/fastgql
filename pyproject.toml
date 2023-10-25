@@ -19,6 +19,8 @@ edgedb = { version = "^1.7.0", optional = true }
 [tool.poetry.extras]
 edgedb = ["edgedb"]
 
+[tool.poetry.dev-dependencies]
+ruff = '*'
 
 [build-system]
 requires = ["poetry-core"]
