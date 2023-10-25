@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "fastgql"
+packages = [ {include = "fastgql"} ]
 version = "0.1.1"
-exclude = []
 description = "The easiest, fastest python GraphQL framework."
 authors = ["Jeremy Berman <jerber@sas.upenn.edu>"]
 license = "MIT"
@@ -38,6 +38,7 @@ edgedb = ["edgedb"]
 
 [tool.poetry.dev-dependencies]
 ruff = '*'
+mypy = '^1.5'
 
 [build-system]
 requires = ["poetry-core"]
