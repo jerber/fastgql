@@ -13,7 +13,7 @@ import pydantic_core
 from pydantic.fields import FieldInfo
 from pydantic.alias_generators import to_camel
 from fastapi import APIRouter, Response, Request, status, BackgroundTasks
-from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, ORJSONResponse
 
 from fastgql import get_graphiql_html
 from fastgql.scalars import DatetimeScalar, UUIDScalar, DateScalar, TimeScalar
@@ -21,7 +21,7 @@ from fastgql.gql_models import GQL, GQLInput
 from fastgql.info import Info
 from fastgql.depends import Depends
 from fastgql.execute.utils import combine_models, build_is_not_nullable_map
-from fastgql.execute.executor import Executor
+from fastgql.execute.executor import Executor, InfoType
 
 ModelType = T.TypeVar("ModelType", bound=T.Type[GQL])
 
@@ -86,15 +86,17 @@ class SchemaBuilder:
     def __init__(
         self,
         *,
+        query_models: list[T.Type[GQL]],
+        mutation_models: list[T.Type[GQL]] | None = None,
         use_camel_case: bool = True,
-        query_models: tuple[T.Type[GQL], ...],
-        mutation_models: tuple[T.Type[GQL], ...] | None = None,
+        info_cls: InfoType | None = None,
     ):
         self.args_camel_to_snake_map: dict[T.Callable, dict[str, str]] = {}
         self.model_methods_to_snake_map: dict[T.Callable, dict[str, str]] = {}
         self.model_fields_camel_to_snake_map: dict[str, dict[str, str]] = {}
 
         self.use_camel_case = use_camel_case
+        self.info_cls = info_cls or Info
 
         query_model = combine_models("Query", *query_models)
         query = self.convert_model_to_gql(
@@ -122,6 +124,21 @@ class SchemaBuilder:
         )
 
         self.is_not_nullable_map = build_is_not_nullable_map(self.schema)
+
+    @classmethod
+    def build_router(
+        cls,
+        *,
+        use_camel_case: bool = True,
+        query_models: list[T.Type[GQL]],
+        mutation_models: list[T.Type[GQL]] | None = None,
+    ):
+        schema_builder = SchemaBuilder(
+            use_camel_case=use_camel_case,
+            query_models=query_models,
+            mutation_models=mutation_models,
+        )
+        return schema_builder._build_router()
 
     def add_to_args_map(
         self, func: T.Callable, field_name: str, field_name_camel: str
@@ -435,7 +452,7 @@ class SchemaBuilder:
             cache[model] = o
         return o
 
-    def build_router(self) -> APIRouter:
+    def _build_router(self) -> APIRouter:
         router = APIRouter()
 
         @router.get(
@@ -494,7 +511,7 @@ class SchemaBuilder:
                     request=request,
                     response=response,
                     bt=background_tasks,
-                    info_cls=Info,
+                    info_cls=self.info_cls,
                     use_cache=True,
                 )
             if res.errors:
@@ -507,7 +524,7 @@ class SchemaBuilder:
             else:
                 serialized_errors = None
             start = time.time()
-            json_r = JSONResponse(
+            json_r = ORJSONResponse(
                 {
                     "data": res.data,
                     "errors": serialized_errors,

@@ -1,13 +1,9 @@
 import typing as T
 import time
 from fastapi import FastAPI, Response, Request
-from fastgql.execute.utils import combine_models
 from fastgql.schema_builder import SchemaBuilder
 
 from tests.server.services.users.gql import Query as UserQuery, Mutation as UserMutation
-
-Query = combine_models("Query", UserQuery)
-Mutation = combine_models("Mutation", UserMutation)
 
 app = FastAPI()
 
@@ -29,8 +25,7 @@ async def add_error_handling_and_process_time_header(
 # QB.build_from_schema(schema, use_camel_case=CAMEL_CASE)
 # Access.build_access_levels_from_schema(schema, use_camel_case=CAMEL_CASE)
 
-schema_builder = SchemaBuilder(
-    use_camel_case=True, query_models=(UserQuery,), mutation_models=(Mutation,)
+router = SchemaBuilder.build_router(
+    query_models=[UserQuery], mutation_models=[UserMutation], use_camel_case=True
 )
-router = schema_builder.build_router()
 app.include_router(router, prefix="/graphql")
