@@ -7,7 +7,6 @@ from fastapi import Request, Response, BackgroundTasks
 from pydantic import RootModel
 
 from fastgql.gql_ast import models as M
-from fastgql.schema_builder import SchemaBuilder
 from fastgql.gql_models import GQL, GQLError
 from fastgql.depends import Depends
 from .utils import InfoType, parse_value, Info
@@ -18,7 +17,7 @@ class Resolver:
     def __init__(
         self,
         *,
-        schema_builder: SchemaBuilder,
+        use_camel_case: bool,
         info_cls: T.Type[InfoType],
         is_not_nullable_map: dict[str, dict[str, bool]],
         variables: dict[str, T.Any] | None,
@@ -27,7 +26,7 @@ class Resolver:
         response: Response,
         bt: BackgroundTasks,
     ):
-        self.schema_builder = schema_builder
+        self.use_camel_case = use_camel_case
         self.info_cls = info_cls
         self.is_not_nullable_map = is_not_nullable_map
         self.variables = variables
@@ -61,7 +60,7 @@ class Resolver:
                     val = RootModel[param.annotation].model_validate(
                         val,
                         context={
-                            "_use_camel_case": self.schema_builder.use_camel_case,
+                            "_use_camel_case": self.use_camel_case,
                         },
                     )
                 new_kwargs[name] = val

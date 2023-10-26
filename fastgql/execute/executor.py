@@ -7,7 +7,6 @@ from devtools import debug
 
 from fastgql.gql_ast import models as M
 from fastgql.gql_ast.translator import Translator
-from fastgql.schema_builder import SchemaBuilder
 from fastgql.gql_models import GQL
 from .utils import (
     build_is_not_nullable_map,
@@ -24,13 +23,13 @@ class Executor:
 
     def __init__(
         self,
-        schema_builder: SchemaBuilder,
+        use_camel_case: bool,
         schema: graphql.GraphQLSchema,
         query_model: GQL | None,
         mutation_model: GQL | None,
         root_nodes_cache_size: int = 100,
     ):
-        self.schema_builder = schema_builder
+        self.use_camel_case = use_camel_case
         self.schema = schema
         self.is_not_nullable_map = build_is_not_nullable_map(schema)
         self.operation_type_to_model: dict[M.OperationType, GQL | None] = {
@@ -55,7 +54,6 @@ class Executor:
         request: Request,
         response: Response,
         bt: BackgroundTasks,
-        use_camel_case: bool,
         use_cache: bool,
     ) -> Result:
         start_for_root_nodes = time.time()
@@ -87,7 +85,7 @@ class Executor:
             root_nodes = Translator(
                 document=document,
                 schema=self.schema,
-                use_camel_case=use_camel_case,
+                use_camel_case=self.use_camel_case,
             ).translate()
             print(f"[TRANSLATING] took {(time.time() - start_translate) * 1_000} ms")
             if use_cache:
@@ -96,7 +94,7 @@ class Executor:
             f"[ROOT NODES] parsing took {(time.time() - start_for_root_nodes) * 1_000} ms"
         )
         resolver = Resolver(
-            schema_builder=self.schema_builder,
+            use_camel_case=self.use_camel_case,
             info_cls=info_cls,
             is_not_nullable_map=self.is_not_nullable_map,
             variables=variable_values,

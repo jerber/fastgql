@@ -1,19 +1,27 @@
 import typing as T
+from dataclasses import dataclass
+import time
 import types
 import datetime
 import enum
 import uuid
+import json
 import inspect
 import functools
 import graphql
 import pydantic_core
 from pydantic.fields import FieldInfo
 from pydantic.alias_generators import to_camel
+from fastapi import APIRouter, Response, Request, status, BackgroundTasks
+from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 
+from fastgql import get_graphiql_html
 from fastgql.scalars import DatetimeScalar, UUIDScalar, DateScalar, TimeScalar
 from fastgql.gql_models import GQL, GQLInput
 from fastgql.info import Info
 from fastgql.depends import Depends
+from fastgql.execute.utils import combine_models, build_is_not_nullable_map
+from fastgql.execute.executor import Executor
 
 ModelType = T.TypeVar("ModelType", bound=T.Type[GQL])
 
@@ -36,12 +44,84 @@ enum_cache: dict[T.Type[enum.Enum], graphql.GraphQLEnumType] = {}
 union_cache: dict[str, graphql.GraphQLUnionType] = {}
 
 
+@dataclass
+class GraphQLRequestData:
+    # query is optional here as it can be added by an extensions
+    # (for example an extension for persisted queries)
+    query: str | None
+    variables: dict[str, T.Any] | None
+    operation_name: str | None
+
+
+class MissingQueryError(Exception):
+    def __init__(self):
+        message = 'Request data is missing a "query" value'
+
+        super().__init__(message)
+
+
+def parse_request_data(data: T.Mapping[str, T.Any]) -> GraphQLRequestData:
+    query = data.get("query")
+    if not query:
+        raise MissingQueryError()
+    return GraphQLRequestData(
+        query=query,
+        variables=data.get("variables"),
+        operation_name=data.get("operationName"),
+    )
+
+
+def serialize_graphql_error(error: graphql.GraphQLError) -> dict:
+    return {
+        "message": str(error.message),
+        "locations": [
+            location._asdict() for location in error.locations or []
+        ],  # Assuming location is a named tuple
+        "path": error.path,
+        "extensions": error.extensions,
+    }
+
+
 class SchemaBuilder:
-    def __init__(self, use_camel_case: bool = True):
-        self.use_camel_case = use_camel_case
+    def __init__(
+        self,
+        *,
+        use_camel_case: bool = True,
+        query_models: tuple[T.Type[GQL], ...],
+        mutation_models: tuple[T.Type[GQL], ...] | None = None,
+    ):
         self.args_camel_to_snake_map: dict[T.Callable, dict[str, str]] = {}
         self.model_methods_to_snake_map: dict[T.Callable, dict[str, str]] = {}
         self.model_fields_camel_to_snake_map: dict[str, dict[str, str]] = {}
+
+        self.use_camel_case = use_camel_case
+
+        query_model = combine_models("Query", *query_models)
+        query = self.convert_model_to_gql(
+            model=query_model,
+            is_input=False,
+            ignore_if_has_seen=False,
+        )
+        if mutation_models:
+            mutation_model = combine_models("Mutation", *mutation_models)
+            mutation = self.convert_model_to_gql(
+                model=mutation_model,
+                is_input=False,
+                ignore_if_has_seen=False,
+            )
+        else:
+            mutation_model = None
+            mutation = None
+        self.schema = graphql.GraphQLSchema(query=query, mutation=mutation)
+
+        self.executor = Executor(
+            use_camel_case=self.use_camel_case,
+            schema=self.schema,
+            query_model=query_model(),
+            mutation_model=mutation_model() if mutation_model else None,
+        )
+
+        self.is_not_nullable_map = build_is_not_nullable_map(self.schema)
 
     def add_to_args_map(
         self, func: T.Callable, field_name: str, field_name_camel: str
@@ -354,3 +434,87 @@ class SchemaBuilder:
                 o._pydantic_model = model
             cache[model] = o
         return o
+
+    def build_router(self) -> APIRouter:
+        router = APIRouter()
+
+        @router.get(
+            "",
+            responses={
+                200: {
+                    "description": "The GraphiQL integrated development environment.",
+                },
+                404: {
+                    "description": "Not found if GraphiQL is not enabled.",
+                },
+            },
+        )
+        async def get_graphiql() -> HTMLResponse:
+            return HTMLResponse(get_graphiql_html())
+
+        @router.post("")
+        async def handle_gql(
+            request: Request, response: Response, background_tasks: BackgroundTasks
+        ) -> Response:
+            content_type = request.headers.get("content-type", "")
+            if "application/json" in content_type:
+                try:
+                    data = await request.json()
+                except json.JSONDecodeError:
+                    return PlainTextResponse(
+                        "Unable to parse request body as JSON",
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                return PlainTextResponse(
+                    "Unsupported Media Type",
+                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                )
+
+            try:
+                request_data = parse_request_data(data)
+            except MissingQueryError:
+                return PlainTextResponse(
+                    "No GraphQL query found in the request",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if request_data.operation_name == "IntrospectionQuery":
+                res = await graphql.graphql(
+                    schema=self.schema,
+                    source=request_data.query,
+                    variable_values=request_data.variables,
+                    operation_name=request_data.operation_name,
+                )
+            else:
+                res = await self.executor.execute(
+                    source=request_data.query,
+                    variable_values=request_data.variables,
+                    operation_name=request_data.operation_name,
+                    request=request,
+                    response=response,
+                    bt=background_tasks,
+                    info_cls=Info,
+                    use_cache=True,
+                )
+            if res.errors:
+                # TODO idk how do to these errors...
+                # for error in res.errors:
+                #     raise error
+                serialized_errors = [
+                    serialize_graphql_error(error) for error in res.errors
+                ]
+            else:
+                serialized_errors = None
+            start = time.time()
+            json_r = JSONResponse(
+                {
+                    "data": res.data,
+                    "errors": serialized_errors,
+                    "extensions": res.extensions,
+                }
+            )
+            print(f"json response parsing took {(time.time() - start) * 1000:.2f} ms")
+            return json_r
+
+        return router
