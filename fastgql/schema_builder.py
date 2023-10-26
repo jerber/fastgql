@@ -133,11 +133,13 @@ class SchemaBuilder:
         query_models: list[T.Type[GQL]],
         mutation_models: list[T.Type[GQL]] | None = None,
         allow_graphiql: bool = True,
+        info_cls: InfoType | None = None,
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,
             query_models=query_models,
             mutation_models=mutation_models,
+            info_cls=info_cls,
         )
         return schema_builder._build_router(allow_graphiql=allow_graphiql)
 
