@@ -22,6 +22,7 @@ from fastgql.info import Info
 from fastgql.depends import Depends
 from fastgql.execute.utils import combine_models
 from fastgql.execute.executor import Executor, InfoType
+from fastgql.query_builders.edgedb import logic as qb_logic
 
 ModelType = T.TypeVar("ModelType", bound=T.Type[GQL])
 
@@ -111,6 +112,11 @@ class SchemaBuilder:
             mutation_model = None
             mutation = None
         self.schema = graphql.GraphQLSchema(query=query, mutation=mutation)
+
+        # now build QBs if QBs are found
+        qb_logic.build_from_schema(
+            schema=self.schema, use_camel_case=self.use_camel_case
+        )
 
         self.executor = Executor(
             use_camel_case=self.use_camel_case,

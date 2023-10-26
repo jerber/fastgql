@@ -110,3 +110,17 @@ def build_is_not_nullable_map(
                     field_val.type, graphql.GraphQLNonNull
                 )
     return is_not_nullable_map
+
+
+def get_root_type(
+    gql_field: graphql.GraphQLField | graphql.GraphQLObjectType,
+) -> graphql.GraphQLObjectType | list[graphql.GraphQLObjectType]:
+    if isinstance(gql_field, graphql.GraphQLObjectType):
+        return gql_field
+    t = gql_field.type
+    while True:
+        if isinstance(t, graphql.GraphQLUnionType):
+            return [get_root_type(gql_field=tt) for tt in t.types]
+        if isinstance(t, graphql.GraphQLObjectType):
+            return t
+        t = t.of_type
