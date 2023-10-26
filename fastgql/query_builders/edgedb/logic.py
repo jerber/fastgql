@@ -1,11 +1,15 @@
 import typing as T
+import types
 import time
 import inspect
 import graphql
-from pydantic import alias_generators
+from pydantic import alias_generators, BaseModel
+from devtools import debug
 
 from fastgql.execute.utils import get_root_type
+from fastgql.info import Info
 from .config import QueryBuilderConfig, Link, Property
+from .query_builder import QueryBuilder
 
 
 def get_qb_config_from_gql_field(
@@ -85,3 +89,44 @@ def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> No
     print(
         f"[QB CONFIG BUILDING] building the qb configs took: {(time.time() - start) * 1000} ms"
     )
+
+
+def root_type_s_from_annotation(
+    a: T.Any,
+) -> T.Type[BaseModel] | list[T.Type[BaseModel]]:
+    if inspect.isclass(a):
+        return a
+    else:
+        origin = T.get_origin(a)
+        args = T.get_args(a)
+        if origin is list or origin is types.UnionType or origin is T.Union:
+            non_none_args = []
+            for arg in args:
+                if not (
+                    arg is None
+                    or (inspect.isclass(arg) and issubclass(arg, type(None)))
+                ):
+                    non_none_args.append(arg)
+            if len(non_none_args) == 1:  # that means non was taken out?
+                return root_type_s_from_annotation(non_none_args[0])
+            else:
+                return [root_type_s_from_annotation(arg) for arg in args]
+
+
+async def get_qb(info: Info) -> QueryBuilder:
+    annotation = info.node.annotation
+    root_type_s = root_type_s_from_annotation(annotation)
+    if type(root_type_s) is list:
+        existing_config = None
+        for root_type in root_type_s:
+            qb_config: QueryBuilderConfig = getattr(root_type, "qb_config", None)
+            if qb_config and not qb_config.is_empty():
+                if existing_config:
+                    debug(qb_config, existing_config)
+                    raise Exception("You cannot have conflicting qb_configs.")
+                existing_config = qb_config
+        if not existing_config:
+            raise Exception("There is no return model with a qb_config.")
+        return await existing_config.from_info(info=info, node=info.node)
+    else:
+        return await root_type_s.qb_config.from_info(info=info, node=info.node)
