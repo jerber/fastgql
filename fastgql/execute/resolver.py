@@ -9,7 +9,7 @@ from pydantic import RootModel
 from fastgql.gql_ast import models as M
 from fastgql.gql_models import GQL, GQLError
 from fastgql.depends import Depends
-from .utils import InfoType, parse_value, Info
+from fastgql.execute.utils import InfoType, parse_value, Info
 from fastgql.utils import node_from_path
 
 

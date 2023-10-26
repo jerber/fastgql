@@ -1,7 +1,7 @@
 import typing as T
 import time
 from fastapi import FastAPI, Response, Request
-from fastgql.schema_builder import SchemaBuilder
+from fastgql import build_router
 
 from tests.server.services.users.gql import Query as UserQuery, Mutation as UserMutation
 
@@ -25,7 +25,8 @@ async def add_error_handling_and_process_time_header(
 # QB.build_from_schema(schema, use_camel_case=CAMEL_CASE)
 # Access.build_access_levels_from_schema(schema, use_camel_case=CAMEL_CASE)
 
-router = SchemaBuilder.build_router(
+router = build_router(
     query_models=[UserQuery], mutation_models=[UserMutation], use_camel_case=True
 )
+# here, you can add dependencies for auth if you want
 app.include_router(router, prefix="/graphql")

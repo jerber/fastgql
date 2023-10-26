@@ -15,12 +15,12 @@ from pydantic.alias_generators import to_camel
 from fastapi import APIRouter, Response, Request, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, PlainTextResponse, ORJSONResponse
 
-from fastgql import get_graphiql_html
+from fastgql.utils import get_graphiql_html
 from fastgql.scalars import DatetimeScalar, UUIDScalar, DateScalar, TimeScalar
 from fastgql.gql_models import GQL, GQLInput
 from fastgql.info import Info
 from fastgql.depends import Depends
-from fastgql.execute.utils import combine_models, build_is_not_nullable_map
+from fastgql.execute.utils import combine_models
 from fastgql.execute.executor import Executor, InfoType
 
 ModelType = T.TypeVar("ModelType", bound=T.Type[GQL])
@@ -91,10 +91,6 @@ class SchemaBuilder:
         use_camel_case: bool = True,
         info_cls: InfoType | None = None,
     ):
-        self.args_camel_to_snake_map: dict[T.Callable, dict[str, str]] = {}
-        self.model_methods_to_snake_map: dict[T.Callable, dict[str, str]] = {}
-        self.model_fields_camel_to_snake_map: dict[str, dict[str, str]] = {}
-
         self.use_camel_case = use_camel_case
         self.info_cls = info_cls or Info
 
@@ -123,8 +119,6 @@ class SchemaBuilder:
             mutation_model=mutation_model() if mutation_model else None,
         )
 
-        self.is_not_nullable_map = build_is_not_nullable_map(self.schema)
-
     @classmethod
     def build_router(
         cls,
@@ -132,35 +126,14 @@ class SchemaBuilder:
         use_camel_case: bool = True,
         query_models: list[T.Type[GQL]],
         mutation_models: list[T.Type[GQL]] | None = None,
+        allow_graphiql: bool = True,
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,
             query_models=query_models,
             mutation_models=mutation_models,
         )
-        return schema_builder._build_router()
-
-    def add_to_args_map(
-        self, func: T.Callable, field_name: str, field_name_camel: str
-    ) -> None:
-        if func not in self.args_camel_to_snake_map:
-            self.args_camel_to_snake_map[func] = {}
-        self.args_camel_to_snake_map[func][field_name_camel] = field_name
-
-    def add_to_model_methods_map(
-        self, method: T.Callable, field_name: str, field_name_camel: str
-    ) -> None:
-        if method not in self.model_methods_to_snake_map:
-            self.model_methods_to_snake_map[method] = {}
-        self.model_methods_to_snake_map[method][field_name_camel] = field_name
-
-    def add_to_model_fields_map(
-        self, model: ModelType, field_name: str, field_name_camel: str
-    ) -> None:
-        key = f"{model.gql_type_name()}"
-        if key not in self.model_fields_camel_to_snake_map:
-            self.model_fields_camel_to_snake_map[key] = {}
-        self.model_fields_camel_to_snake_map[key][field_name_camel] = field_name
+        return schema_builder._build_router(allow_graphiql=allow_graphiql)
 
     def snake_to_camel(self, s: str) -> str:
         if self.use_camel_case:
@@ -306,9 +279,6 @@ class SchemaBuilder:
             else:
                 default_value = graphql.Undefined
             param_name = self.snake_to_camel(og_param_name)
-            self.add_to_args_map(
-                func=func, field_name=og_param_name, field_name_camel=param_name
-            )
             args[param_name] = graphql.GraphQLArgument(
                 type_=param_type_, default_value=default_value
             )
@@ -354,9 +324,6 @@ class SchemaBuilder:
             )
             args = self.args_from_function(func)
             camel_attr = self.snake_to_camel(attr)
-            self.add_to_model_methods_map(
-                method=func, field_name=attr, field_name_camel=camel_attr
-            )
             field = graphql.GraphQLField(
                 type_=_return_type,
                 args=args,
@@ -382,9 +349,6 @@ class SchemaBuilder:
             ):
                 gql_field.args = self.args_from_function(resolver)
             camel_attr = self.snake_to_camel(field_name)
-            self.add_to_model_fields_map(
-                model=model, field_name=field_name, field_name_camel=camel_attr
-            )
             gql_fields[camel_attr] = gql_field
         return gql_fields
 
@@ -452,22 +416,24 @@ class SchemaBuilder:
             cache[model] = o
         return o
 
-    def _build_router(self) -> APIRouter:
+    def _build_router(self, allow_graphiql: bool) -> APIRouter:
         router = APIRouter()
 
-        @router.get(
-            "",
-            responses={
-                200: {
-                    "description": "The GraphiQL integrated development environment.",
+        if allow_graphiql:
+
+            @router.get(
+                "",
+                responses={
+                    200: {
+                        "description": "The GraphiQL integrated development environment.",
+                    },
+                    404: {
+                        "description": "Not found if GraphiQL is not enabled.",
+                    },
                 },
-                404: {
-                    "description": "Not found if GraphiQL is not enabled.",
-                },
-            },
-        )
-        async def get_graphiql() -> HTMLResponse:
-            return HTMLResponse(get_graphiql_html())
+            )
+            async def get_graphiql() -> HTMLResponse:
+                return HTMLResponse(get_graphiql_html())
 
         @router.post("")
         async def handle_gql(

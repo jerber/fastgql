@@ -8,14 +8,14 @@ from devtools import debug
 from fastgql.gql_ast import models as M
 from fastgql.gql_ast.translator import Translator
 from fastgql.gql_models import GQL
-from .utils import (
+from fastgql.execute.utils import (
     build_is_not_nullable_map,
     CacheDict,
     Result,
     InfoType,
     gql_errors_to_graphql_errors,
 )
-from .resolver import Resolver
+from fastgql.execute.resolver import Resolver
 
 
 class Executor:
