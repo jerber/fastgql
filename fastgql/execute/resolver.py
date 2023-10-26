@@ -57,11 +57,15 @@ class Resolver:
             if name in kwargs:
                 val = kwargs[name]
                 if val:
-                    val = RootModel[param.annotation].model_validate(
-                        val,
-                        context={
-                            "_use_camel_case": self.use_camel_case,
-                        },
+                    val = (
+                        RootModel[param.annotation]
+                        .model_validate(
+                            val,
+                            context={
+                                "_use_camel_case": self.use_camel_case,
+                            },
+                        )
+                        .root
                     )
                 new_kwargs[name] = val
             else:
