@@ -66,7 +66,13 @@ class Translator:
             return None
         children: list[FieldNode | InlineFragmentNode] = []
         root_field = self.get_root_type(type_=gql_field)
-        for sel in node.selection_set.selections:
+        selection_q = [*node.selection_set.selections]
+        while len(selection_q) > 0:
+            sel = selection_q.pop()
+            if isinstance(sel, graphql.FragmentSpreadNode):
+                frag = self.fragment_definitions[sel.name.value]
+                selection_q.extend(frag.selection_set.selections)
+                continue
             if isinstance(sel, graphql.InlineFragmentNode):
                 gql_field = self.get_root_type(
                     root_field, type_condition=sel.type_condition.name.value
