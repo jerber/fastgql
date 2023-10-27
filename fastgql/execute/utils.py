@@ -29,6 +29,7 @@ def gql_errors_to_graphql_errors(
                 nodes=e.node.original_node if e.node else None,
                 path=e.path,
                 original_error=e.original_error,
+                extensions=e.extensions,
             )
         )
     return graphql_errors

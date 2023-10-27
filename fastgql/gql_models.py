@@ -49,12 +49,14 @@ class GQLError(Exception):
         node: Node | list[Node] | None = None,
         path: tuple[str, ...] | None = None,
         original_error: Exception | None = None,
+        extensions: dict[str, T.Any] | None = None,
     ):
         super().__init__(message)
         self.message = message
         self.node = node
         self.path = path
         self.original_error = original_error
+        self.extensions = extensions
 
 
 __all__ = ["GQL", "GQLInput", "GQLConfigDict", "GQLError"]
