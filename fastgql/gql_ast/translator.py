@@ -100,7 +100,7 @@ class Translator:
                 raise Exception(f"Invalid sel: {sel=}")
             if existing := has_seen.get(key):
                 sel = self.combine_sels(existing, sel)
-            has_seen[sel.name.value] = sel
+            has_seen[key] = sel
 
         for sel in has_seen.values():
             if isinstance(sel, graphql.InlineFragmentNode):
