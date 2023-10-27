@@ -21,9 +21,3 @@ class Info:
     errors: list[Exception]
 
     path: tuple[str, ...]
-
-    @property
-    def alias(self) -> str:
-        if isinstance(self.node, M.FieldNode):
-            return self.node.alias or self.node.display_name
-        raise Exception("Only FieldNodes have aliases.")
