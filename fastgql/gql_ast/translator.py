@@ -56,6 +56,22 @@ class Translator:
         # TODO for enums, lists... might need to use pydantic validate call here...anoying w return types and all
         return val.value
 
+    @staticmethod
+    def combine_sels(
+        a: graphql.InlineFragmentNode | graphql.FieldNode,
+        b: graphql.InlineFragmentNode | graphql.FieldNode,
+    ) -> graphql.InlineFragmentNode | graphql.FieldNode:
+        new_node: graphql.InlineFragmentNode | graphql.FieldNode = a.__copy__()
+        if isinstance(a, graphql.FieldNode):
+            new_node.arguments = (*a.arguments, *b.arguments)
+        if not new_node.selection_set:
+            new_node.selection_set = graphql.SelectionNode()
+        new_node.selection_set.selections = (
+            *(a.selection_set.selections if a.selection_set else []),
+            *(b.selection_set.selections if b.selection_set else []),
+        )
+        return new_node
+
     def children_from_node(
         self,
         gql_field: graphql.GraphQLField | graphql.GraphQLObjectType,
@@ -67,12 +83,26 @@ class Translator:
         children: list[FieldNode | InlineFragmentNode] = []
         root_field = self.get_root_type(type_=gql_field)
         selection_q = [*node.selection_set.selections]
+
+        # first, flatten and combine them
+        has_seen: dict[str, graphql.InlineFragmentNode | graphql.FieldNode] = {}
         while len(selection_q) > 0:
             sel = selection_q.pop()
             if isinstance(sel, graphql.FragmentSpreadNode):
                 frag = self.fragment_definitions[sel.name.value]
                 selection_q.extend(frag.selection_set.selections)
                 continue
+            if isinstance(sel, graphql.FieldNode):
+                key = sel.alias.value if sel.alias else sel.name.value
+            elif isinstance(sel, graphql.InlineFragmentNode):
+                key = sel.type_condition.name
+            else:
+                raise Exception(f"Invalid sel: {sel=}")
+            if existing := has_seen.get(key):
+                sel = self.combine_sels(existing, sel)
+            has_seen[sel.name.value] = sel
+
+        for sel in has_seen.values():
             if isinstance(sel, graphql.InlineFragmentNode):
                 gql_field = self.get_root_type(
                     root_field, type_condition=sel.type_condition.name.value
