@@ -84,6 +84,7 @@ class QueryBuilderConfig:
                             await _
                 if child.name in self.links:
                     method_config = self.links[child.name]
+                    original_child = child
                     if method_config.path_to_return_cls:
                         child = node_from_path(
                             node=child, path=[*method_config.path_to_return_cls]
@@ -131,7 +132,7 @@ class QueryBuilderConfig:
                                         a.name: parse_value(
                                             variables=info.variables, v=a.value
                                         )
-                                        for a in child.arguments
+                                        for a in original_child.arguments
                                     },
                                 )
                             )
