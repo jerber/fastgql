@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, ORJSONResponse
 
 from fastgql.utils import get_graphiql_html
 from fastgql.scalars import DatetimeScalar, UUIDScalar, DateScalar, TimeScalar
-from fastgql.gql_models import GQL, GQLInput
+from fastgql.gql_models import GQL, GQLInput, GQLInterface
 from fastgql.info import Info
 from fastgql.depends import Depends
 from fastgql.execute.utils import combine_models
@@ -381,6 +381,29 @@ class SchemaBuilder:
     ] = {"inputs": dict(), "outputs": dict()}
     HAS_SEEN_MODEL: dict[str, set[ModelType]] = {"inputs": set(), "outputs": set()}
 
+    def get_interfaces(self, model: T.Type[GQL]) -> list[graphql.GraphQLInterfaceType]:
+        # now get inheritance
+        interfaces: list[graphql.GraphQLInterfaceType] = []
+        for sub_model in model.__mro__[1:]:
+            if sub_model == GQLInterface:
+                break
+            if sub_model == GQL:
+                break
+            if issubclass(sub_model, GQLInterface):
+                interfaces.append(
+                    self.convert_model_to_gql(
+                        model=sub_model, is_input=False, ignore_if_has_seen=False
+                    )
+                )
+        return [
+            graphql.GraphQLInterfaceType(
+                name=i.name,
+                fields=i.fields,
+                interfaces=i.interfaces,
+            )
+            for i in interfaces
+        ]
+
     @functools.cache
     def convert_model_to_gql(
         self, model: ModelType, is_input: bool, ignore_if_has_seen: bool
@@ -419,6 +442,7 @@ class SchemaBuilder:
                     name=model.gql_type_name(),
                     fields=lambda: gql_fields,
                     # description="todo",
+                    interfaces=self.get_interfaces(model=model),
                 )
                 o._pydantic_model = model
             cache[model] = o

@@ -19,6 +19,10 @@ class GQL(BaseModel):
         return cls.gql_config.get("type_name", cls.__name__)
 
 
+class GQLInterface(GQL):
+    pass
+
+
 class GQLInput(GQL):
     @classmethod
     def gql_input_type_name(cls) -> str:
@@ -59,4 +63,4 @@ class GQLError(Exception):
         self.extensions = extensions
 
 
-__all__ = ["GQL", "GQLInput", "GQLConfigDict", "GQLError"]
+__all__ = ["GQL", "GQLInput", "GQLConfigDict", "GQLError", "GQLInterface"]

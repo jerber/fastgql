@@ -1,4 +1,4 @@
-from .gql_models import GQL, GQLInput, GQLError, GQLConfigDict
+from .gql_models import GQL, GQLInput, GQLError, GQLConfigDict, GQLInterface
 from .schema_builder import SchemaBuilder
 from .info import Info
 from .depends import Depends
@@ -20,6 +20,7 @@ __all__ = [
     "SchemaBuilder",
     "build_router",
     "GQL",
+    "GQLInterface",
     "GQLInput",
     "GQLError",
     "GQLConfigDict",
