@@ -84,6 +84,24 @@ def serialize_graphql_error(error: graphql.GraphQLError) -> dict:
     }
 
 
+def context_from_info(info_cls: T.Type[InfoType]) -> T.Type[ContextType] | None:
+    # Access the original bases
+    orig_bases = info_cls.__orig_bases__
+
+    # Check if there's any base
+    if orig_bases:
+        base = orig_bases[0]
+
+        # Check if the base is parameterized
+        if hasattr(base, "__args__") and base.__args__:
+            context_typevar = base.__args__[0]
+
+            # Return the bound of the type variable
+            if hasattr(context_typevar, "__bound__"):
+                return context_typevar.__bound__
+    return None
+
+
 class SchemaBuilder:
     def __init__(
         self,
@@ -92,11 +110,10 @@ class SchemaBuilder:
         mutation_models: list[T.Type[GQL]] | None = None,
         use_camel_case: bool = True,
         info_cls: InfoType | None = None,
-        context_cls: ContextType | None = None,
     ):
         self.use_camel_case = use_camel_case
         self.info_cls = info_cls or Info
-        self.context_cls = context_cls or BaseContext
+        self.context_cls = context_from_info(self.info_cls) or BaseContext
 
         query_model = combine_models("Query", *query_models)
         query = self.convert_model_to_gql(
