@@ -272,6 +272,12 @@ class SchemaBuilder:
                     continue
                 if issubclass(param.annotation, Info):
                     continue
+                if issubclass(param.annotation, Request):
+                    continue
+                if issubclass(param.annotation, Response):
+                    continue
+                if issubclass(param.annotation, BackgroundTasks):
+                    continue
                 if isinstance(param.default, Depends):
                     # get the args from the depends!
                     args.update(self.args_from_function(param.default.dependency))

@@ -69,14 +69,19 @@ class Resolver:
                     )
                 new_kwargs[name] = val
             else:
-                if inspect.isclass(param.annotation) and issubclass(
-                    param.annotation, Info
-                ):
-                    new_kwargs[name] = info
-                elif isinstance(param.default, Depends):
+                if isinstance(param.default, Depends):
                     new_kwargs[name] = await self.inject_dependencies(
                         func=param.default.dependency, kwargs=kwargs, info=info
                     )
+                elif inspect.isclass(param.annotation):
+                    if issubclass(param.annotation, Info):
+                        new_kwargs[name] = info
+                    elif issubclass(param.annotation, Request):
+                        new_kwargs[name] = self.request
+                    elif issubclass(param.annotation, Response):
+                        new_kwargs[name] = self.response
+                    elif issubclass(param.annotation, BackgroundTasks):
+                        new_kwargs[name] = self.bt
                 # just continue, the value is not given and that is okay
         return new_kwargs
 
