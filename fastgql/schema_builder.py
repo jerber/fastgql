@@ -99,6 +99,10 @@ def context_from_info(info_cls: T.Type[InfoType]) -> T.Type[ContextType] | None:
             # Return the bound of the type variable
             if hasattr(context_typevar, "__bound__"):
                 return context_typevar.__bound__
+
+            if issubclass(context_typevar, BaseContext):
+                return context_typevar
+
     return None
 
 
