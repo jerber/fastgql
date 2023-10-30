@@ -21,8 +21,9 @@ from fastgql.gql_models import GQL, GQLInput, GQLInterface
 from fastgql.info import Info
 from fastgql.depends import Depends
 from fastgql.execute.utils import combine_models
-from fastgql.execute.executor import Executor, InfoType
+from fastgql.execute.executor import Executor, InfoType, ContextType
 from fastgql.query_builders.edgedb import logic as qb_logic
+from fastgql.context import BaseContext
 
 ModelType = T.TypeVar("ModelType", bound=T.Type[GQL])
 
@@ -91,9 +92,11 @@ class SchemaBuilder:
         mutation_models: list[T.Type[GQL]] | None = None,
         use_camel_case: bool = True,
         info_cls: InfoType | None = None,
+        context_cls: ContextType | None = None,
     ):
         self.use_camel_case = use_camel_case
         self.info_cls = info_cls or Info
+        self.context_cls = context_cls or BaseContext
 
         query_model = combine_models("Query", *query_models)
         query = self.convert_model_to_gql(
@@ -516,6 +519,7 @@ class SchemaBuilder:
                     response=response,
                     bt=background_tasks,
                     info_cls=self.info_cls,
+                    context_cls=self.context_cls,
                     use_cache=True,
                 )
             if res.errors:

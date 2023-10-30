@@ -9,7 +9,7 @@ from pydantic import RootModel
 from fastgql.gql_ast import models as M
 from fastgql.gql_models import GQL, GQLError
 from fastgql.depends import Depends
-from fastgql.execute.utils import InfoType, parse_value, Info
+from fastgql.execute.utils import InfoType, parse_value, Info, ContextType
 from fastgql.utils import node_from_path
 
 
@@ -19,9 +19,9 @@ class Resolver:
         *,
         use_camel_case: bool,
         info_cls: T.Type[InfoType],
+        context_cls: T.Type[ContextType],
         is_not_nullable_map: dict[str, dict[str, bool]],
         variables: dict[str, T.Any] | None,
-        context: dict[str, T.Any] | None = None,
         request: Request,
         response: Response,
         bt: BackgroundTasks,
@@ -30,13 +30,20 @@ class Resolver:
         self.info_cls = info_cls
         self.is_not_nullable_map = is_not_nullable_map
         self.variables = variables
-        self.context = context or {}
 
         self.request = request
         self.response = response
         self.bt = bt
 
         self.errors: list[GQLError] = []
+
+        self.context: ContextType = context_cls(
+            request=self.request,
+            response=self.response,
+            background_tasks=self.bt,
+            errors=self.errors,
+            variables=self.variables,
+        )
 
     async def inject_dependencies(
         self, func: T.Callable[..., T.Any], kwargs: dict[str, T.Any], info: InfoType
@@ -101,15 +108,10 @@ class Resolver:
     ) -> dict[str, T.Any] | list[dict[str, T.Any]] | None:
         # TODO if inefficient, lazily create info! Or maybe even cache it... or come up with a better way
         info = self.info_cls(
-            variables=self.variables,
             node=node,
             parent_node=parent,
-            context=self.context,
-            request=self.request,
-            response=self.response,
-            background_tasks=self.bt,
-            errors=self.errors,
             path=new_path,
+            context=self.context,
         )
         new_kwargs = await self.build_kwargs(func=method, kwargs=kwargs, info=info)
         child_model_s = method(**new_kwargs)

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pydantic import create_model
 import graphql
 
-from fastgql.info import Info
+from fastgql.info import Info, ContextType
 from fastgql.gql_models import GQL, GQLError
 
 InfoType = T.TypeVar("InfoType", bound=Info)
@@ -125,3 +125,17 @@ def get_root_type(
         if isinstance(t, graphql.GraphQLObjectType):
             return t
         t = t.of_type
+
+
+__all__ = [
+    "InfoType",
+    "ContextType",
+    "get_root_type",
+    "build_is_not_nullable_map",
+    "parse_value",
+    "combine_models",
+    "Result",
+    "gql_errors_to_graphql_errors",
+    "CacheDict",
+    "Info"
+]

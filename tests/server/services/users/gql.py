@@ -1,6 +1,8 @@
 import uuid
 from uuid import UUID
 from fastgql.gql_models import GQL
+from fastgql import Info
+from devtools import debug
 
 
 class User(GQL):
@@ -10,7 +12,8 @@ class User(GQL):
 
 class Query(GQL):
     @staticmethod
-    async def get_user() -> User:
+    async def get_user(info: Info) -> User:
+        debug(info.context)
         return User(id=uuid.uuid4(), name="Frank Stove")
 
 

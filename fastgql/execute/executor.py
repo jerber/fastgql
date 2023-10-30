@@ -13,6 +13,7 @@ from fastgql.execute.utils import (
     CacheDict,
     Result,
     InfoType,
+    ContextType,
     gql_errors_to_graphql_errors,
 )
 from fastgql.execute.resolver import Resolver
@@ -50,7 +51,7 @@ class Executor:
         validate_query: bool = True,
         validate_variables: bool = True,
         info_cls: T.Type[InfoType],
-        context: dict[str, T.Any] | None = None,
+        context_cls: T.Type[ContextType],
         request: Request,
         response: Response,
         bt: BackgroundTasks,
@@ -96,9 +97,9 @@ class Executor:
         resolver = Resolver(
             use_camel_case=self.use_camel_case,
             info_cls=info_cls,
+            context_cls=context_cls,
             is_not_nullable_map=self.is_not_nullable_map,
             variables=variable_values,
-            context=context,
             request=request,
             response=response,
             bt=bt,
