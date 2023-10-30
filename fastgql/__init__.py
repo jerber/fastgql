@@ -1,6 +1,7 @@
 from .gql_models import GQL, GQLInput, GQLError, GQLConfigDict, GQLInterface
 from .schema_builder import SchemaBuilder
 from .info import Info
+from .context import BaseContext
 from .depends import Depends
 from .query_builders.edgedb.logic import get_qb
 from .query_builders.edgedb.query_builder import QueryBuilder, ChildEdge
@@ -25,6 +26,7 @@ __all__ = [
     "GQLError",
     "GQLConfigDict",
     "Info",
+    "BaseContext",
     "Depends",
     "get_qb",
     "QueryBuilder",
