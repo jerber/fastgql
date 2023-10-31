@@ -1,13 +1,21 @@
 import uuid
 from uuid import UUID
+from pydantic import Field
 from fastgql.gql_models import GQL
 from fastgql import Info
 from devtools import debug
 
 
 class User(GQL):
-    id: UUID
+    id: UUID = Field(..., description='Id for user.')
     name: str
+
+    def nickname(self) -> str:
+        """
+        builds nickname
+        :return: str
+        """
+        return f"lil {self.name}"
 
 
 class Query(GQL):

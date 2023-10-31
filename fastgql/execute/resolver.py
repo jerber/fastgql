@@ -105,7 +105,7 @@ class Resolver:
         method: T.Callable | T.Awaitable,
         kwargs: dict[str, T.Any],
         new_path: tuple[str, ...],
-    ) -> dict[str, T.Any] | list[dict[str, T.Any]] | None:
+    ) -> dict[str, T.Any] | list[dict[str, T.Any]] | T.Any | None:
         # TODO if inefficient, lazily create info! Or maybe even cache it... or come up with a better way
         info = self.info_cls(
             node=node,
@@ -118,9 +118,12 @@ class Resolver:
         if inspect.isawaitable(child_model_s):
             child_model_s = await child_model_s
         if child_model_s:
-            return await self.resolve_node_s(
-                node=node, model_s=child_model_s, path=new_path
-            )
+            if node.children:
+                return await self.resolve_node_s(
+                    node=node, model_s=child_model_s, path=new_path
+                )
+            else:
+                return child_model_s
         return child_model_s
 
     async def resolve_node_s(

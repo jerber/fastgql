@@ -365,7 +365,7 @@ class SchemaBuilder:
             field = graphql.GraphQLField(
                 type_=_return_type,
                 args=args,
-                # description="todo",
+                description=func.__doc__,
                 # resolve=wrap_pydantic_resolver(func),
                 resolve=func,
             )
@@ -462,7 +462,7 @@ class SchemaBuilder:
                 o = graphql.GraphQLInputObjectType(
                     name=model.gql_input_type_name(),
                     fields=lambda: gql_fields,
-                    # description="todo",
+                    description=model.gql_description(),
                 )
                 o._pydantic_model = model
             else:
@@ -471,7 +471,7 @@ class SchemaBuilder:
                 o = graphql.GraphQLObjectType(
                     name=model.gql_type_name(),
                     fields=lambda: gql_fields,
-                    # description="todo",
+                    description=model.gql_description(),
                     interfaces=self.get_interfaces(model=model),
                 )
                 o._pydantic_model = model
@@ -544,9 +544,6 @@ class SchemaBuilder:
                     use_cache=True,
                 )
             if res.errors:
-                # TODO idk how do to these errors...
-                # for error in res.errors:
-                #     raise error
                 serialized_errors = [
                     serialize_graphql_error(error) for error in res.errors
                 ]

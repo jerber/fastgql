@@ -137,5 +137,5 @@ __all__ = [
     "Result",
     "gql_errors_to_graphql_errors",
     "CacheDict",
-    "Info"
+    "Info",
 ]

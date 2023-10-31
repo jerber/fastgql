@@ -9,6 +9,7 @@ class GQLConfigDict(T.TypedDict, total=False):
 
     type_name: str
     input_type_name: str
+    description: str
 
 
 class GQL(BaseModel):
@@ -17,6 +18,10 @@ class GQL(BaseModel):
     @classmethod
     def gql_type_name(cls) -> str:
         return cls.gql_config.get("type_name", cls.__name__)
+
+    @classmethod
+    def gql_description(cls) -> str | None:
+        return cls.gql_config.get("description")
 
 
 class GQLInterface(GQL):
