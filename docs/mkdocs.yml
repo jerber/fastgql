@@ -14,18 +14,20 @@ theme:
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to dark mode
-      primary: cyan
-      accent: purple
+      # primary: blue grey
+      primary: custom
+      accent: custom
     - scheme: slate
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
-      primary: cyan
-      accent: purple
+      primary: custom
+      accent: custom
   features:
     # FROM FASTAPI
     - search.suggest
     - search.highlight
+    - navigation.instant
     - content.tabs.link
     - navigation.indexes
     - content.tooltips
@@ -56,6 +58,7 @@ edit_uri: ''
 
 plugins:
   - social
+  - search
 
 extra:
   social:
@@ -83,3 +86,6 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       # emoji_index: !!python/name:materialx.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
+
+extra_css:
+  - stylesheets/extra.css
