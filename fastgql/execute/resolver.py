@@ -228,7 +228,7 @@ class Resolver:
 
         # now null check and order property
         sorted_d = {}
-        for name_to_return, name in reversed(name_to_return_to_display_name.items()):
+        for name_to_return, name in name_to_return_to_display_name.items():
             val = final_d[name_to_return]
             if val is None:
                 if path:
