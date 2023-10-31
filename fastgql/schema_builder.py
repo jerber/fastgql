@@ -113,7 +113,7 @@ class SchemaBuilder:
         query_models: list[T.Type[GQL]],
         mutation_models: list[T.Type[GQL]] | None = None,
         use_camel_case: bool = True,
-        info_cls: InfoType | None = None,
+        info_cls: T.Type[InfoType] | None = None,
     ):
         self.use_camel_case = use_camel_case
         self.info_cls = info_cls or Info
@@ -157,7 +157,7 @@ class SchemaBuilder:
         query_models: list[T.Type[GQL]],
         mutation_models: list[T.Type[GQL]] | None = None,
         allow_graphiql: bool = True,
-        info_cls: InfoType | None = None,
+        info_cls: T.Type[InfoType] | None = None,
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,

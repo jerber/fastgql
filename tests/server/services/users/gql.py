@@ -7,7 +7,7 @@ from devtools import debug
 
 
 class User(GQL):
-    id: UUID = Field(..., description='Id for user.')
+    id: UUID = Field(..., description="Id for user.")
     name: str
 
     def nickname(self) -> str:
@@ -21,7 +21,6 @@ class User(GQL):
 class Query(GQL):
     @staticmethod
     async def get_user(info: Info) -> User:
-        debug(info.context)
         return User(id=uuid.uuid4(), name="Frank Stove")
 
 
