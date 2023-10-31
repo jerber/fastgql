@@ -1,0 +1,85 @@
+# site_name: FastGQL
+# theme:
+  # name: material
+
+# yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
+
+site_name: FastGQL
+site_url: https://jerber.github.io/fastgql/
+site_description: FastGQL is a python GraphQL framework that is high performance, easy to learn and ready for production.
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+      primary: cyan
+      accent: purple
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+      primary: cyan
+      accent: purple
+  features:
+    # FROM FASTAPI
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - navigation.indexes
+    - content.tooltips
+    # - navigation.path
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+
+
+    # FROM TUTORIAL
+    # - navigation.tabs
+    # - navigation.sections
+    # - toc.integrate
+    # - navigation.top
+    # - search.suggest
+    # - search.highlight
+    # - content.tabs.link
+    # - content.code.annotation
+    # - content.code.copy
+  icon:
+    repo: fontawesome/brands/github-alt
+  logo: 'img/emoji_logo.svg'
+  favicon: 'img/emoji_logo.svg'
+  language: en
+repo_name: 'jerber/fastgql'
+repo_url: 'https://github.com/jerber/fastgql'
+edit_uri: ''
+
+plugins:
+  - social
+
+extra:
+  social:
+    - icon: fontawesome/brands/github-alt
+      link: https://github.com/jerber
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/jerber888
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/jeremyberman1/
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.mark
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      # emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
