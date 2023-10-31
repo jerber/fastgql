@@ -9,6 +9,7 @@ import json
 import inspect
 import functools
 import graphql
+import pydantic
 import pydantic_core
 from pydantic.fields import FieldInfo
 from pydantic.alias_generators import to_camel
@@ -24,6 +25,10 @@ from fastgql.execute.utils import combine_models
 from fastgql.execute.executor import Executor, InfoType, ContextType
 from fastgql.query_builders.edgedb import logic as qb_logic
 from fastgql.context import BaseContext
+
+BASEMODEL_DIR: list[str] = dir(pydantic.BaseModel)
+GQL_DIR: list[str] = [*dir(GQL), *dir(GQLInput), *dir(GQLInterface)]
+DIRS_TO_IGNORE: set[str] = {*BASEMODEL_DIR, *GQL_DIR}
 
 ModelType = T.TypeVar("ModelType", bound=T.Type[GQL])
 
@@ -178,6 +183,7 @@ class SchemaBuilder:
     ) -> (
         graphql.GraphQLType
         | graphql.GraphQLObjectType
+        | graphql.GraphQLInterfaceType
         | graphql.GraphQLInputType
         | graphql.GraphQLInputObjectType
     ):
@@ -223,7 +229,9 @@ class SchemaBuilder:
                     ]
                     # unions cannot have non-nullable types within them but the union can be non-nullable
                     nullable_types: list[
-                        graphql.GraphQLObjectType, graphql.GraphQLInputObjectType
+                        graphql.GraphQLObjectType,
+                        graphql.GraphQLInputObjectType,
+                        graphql.GraphQLInterfaceType,
                     ] = []
                     for t in types_:
                         if isinstance(t, graphql.GraphQLNonNull):
@@ -231,7 +239,11 @@ class SchemaBuilder:
                         nullable_types.append(t)
                         if not isinstance(
                             t,
-                            (graphql.GraphQLObjectType, graphql.GraphQLInputObjectType),
+                            (
+                                graphql.GraphQLObjectType,
+                                graphql.GraphQLInputObjectType,
+                                graphql.GraphQLInterfaceType,
+                            ),
                         ):
                             raise Exception(
                                 f"You cannot have a union between non object types: {[t for t in types_]}"
@@ -342,13 +354,11 @@ class SchemaBuilder:
         model: ModelType,
     ) -> dict[str, graphql.GraphQLField | graphql.GraphQLInputField]:
         gql_fields: dict[str, graphql.GraphQLField | graphql.GraphQLInputField] = {}
-        for attr, func in model.__dict__.items():
+        attrs = [a for a in set(dir(model)) - DIRS_TO_IGNORE if not a.startswith("_")]
+        for attr in attrs:
+            func = getattr(model, attr)
             if not callable(func):
                 # inbuilt attrs
-                continue
-            if attr.startswith("_"):
-                continue
-            if attr == "model_post_init":
                 continue
             # return_type = inspect.signature(func).return_annotation
             # wow, get_actual_return_type really works. Should replace the old inspect.signature everywhere with it...
@@ -406,7 +416,11 @@ class SchemaBuilder:
         str,
         dict[
             ModelType,
-            T.Union[graphql.GraphQLObjectType, graphql.GraphQLInputObjectType],
+            T.Union[
+                graphql.GraphQLObjectType,
+                graphql.GraphQLInputObjectType,
+                graphql.GraphQLInterfaceType,
+            ],
         ],
     ] = {"inputs": dict(), "outputs": dict()}
     HAS_SEEN_MODEL: dict[str, set[ModelType]] = {"inputs": set(), "outputs": set()}
@@ -425,19 +439,16 @@ class SchemaBuilder:
                         model=sub_model, is_input=False, ignore_if_has_seen=False
                     )
                 )
-        return [
-            graphql.GraphQLInterfaceType(
-                name=i.name,
-                fields=i.fields,
-                interfaces=i.interfaces,
-            )
-            for i in interfaces
-        ]
+        return interfaces
 
     @functools.cache
     def convert_model_to_gql(
         self, model: ModelType, is_input: bool, ignore_if_has_seen: bool
-    ) -> graphql.GraphQLObjectType | graphql.GraphQLInputObjectType:
+    ) -> (
+        graphql.GraphQLObjectType
+        | graphql.GraphQLInputObjectType
+        | graphql.GraphQLInterfaceType
+    ):
         key = "inputs" if is_input else "outputs"
         cache = self.MODEL_TO_GQL_CACHE[key]
         has_seen = self.HAS_SEEN_MODEL[key]
@@ -468,12 +479,20 @@ class SchemaBuilder:
             else:
                 if not issubclass(model, GQL):
                     raise Exception(f"Model {model.__name__} must inherit from GQL.")
-                o = graphql.GraphQLObjectType(
-                    name=model.gql_type_name(),
-                    fields=lambda: gql_fields,
-                    description=model.gql_description(),
-                    interfaces=self.get_interfaces(model=model),
-                )
+                # if directly an interface...
+                if model.__mro__[1] == GQLInterface:
+                    o = graphql.GraphQLInterfaceType(
+                        name=model.gql_type_name(),
+                        fields=lambda: gql_fields,
+                        interfaces=self.get_interfaces(model=model),
+                    )
+                else:
+                    o = graphql.GraphQLObjectType(
+                        name=model.gql_type_name(),
+                        fields=lambda: gql_fields,
+                        description=model.gql_description(),
+                        interfaces=self.get_interfaces(model=model),
+                    )
                 o._pydantic_model = model
             cache[model] = o
         return o

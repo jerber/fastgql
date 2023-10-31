@@ -11,18 +11,17 @@ theme:
   name: material
   palette:
     - scheme: default
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/toggle-switch-off-outline
+        icon: material/lightbulb
         name: Switch to dark mode
-      # primary: blue grey
-      primary: custom
-      accent: custom
     - scheme: slate
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to light mode
       primary: custom
       accent: custom
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to light mode
   features:
     # FROM FASTAPI
     - search.suggest

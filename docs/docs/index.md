@@ -1,6 +1,6 @@
 # Homepage
 
-FastGQL is a modern, fast (high-performance), web framework for building GraphQL APIs with Python 3.10+ based on standard Python type hints.
+FastGQL is a modern, fast (high-performance), web framework for building GraphQL APIs with Python 3.11+ based on standard Python type hints.
 
 The key features are:
 

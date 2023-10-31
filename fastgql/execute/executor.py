@@ -107,8 +107,6 @@ class Executor:
         d = await resolver.resolve_root_nodes(
             root_nodes=root_nodes, operation_type_to_model=self.operation_type_to_model
         )
-        if resolver.errors:
-            debug(resolver.errors)
         # now process errors
         return Result(
             data=d,

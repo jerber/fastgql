@@ -4,7 +4,7 @@ import asyncio
 import inspect
 
 from fastapi import Request, Response, BackgroundTasks
-from pydantic import RootModel
+from pydantic import TypeAdapter
 
 from fastgql.gql_ast import models as M
 from fastgql.gql_models import GQL, GQLError
@@ -64,15 +64,11 @@ class Resolver:
             if name in kwargs:
                 val = kwargs[name]
                 if val:
-                    val = (
-                        RootModel[param.annotation]
-                        .model_validate(
-                            val,
-                            context={
-                                "_use_camel_case": self.use_camel_case,
-                            },
-                        )
-                        .root
+                    val = TypeAdapter(param.annotation).validate_python(
+                        val,
+                        context={
+                            "_use_camel_case": self.use_camel_case,
+                        },
                     )
                 new_kwargs[name] = val
             else:
