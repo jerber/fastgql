@@ -59,6 +59,7 @@ nav:
   - Tutorial - User Guide:
     - tutorial/index.md
     - tutorial/more_advanced.md
+    - tutorial/query_builder.md
 
 plugins:
   - social
