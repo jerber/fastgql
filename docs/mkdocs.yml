@@ -58,6 +58,7 @@ nav:
   - FastGQL: index.md
   - Tutorial - User Guide:
     - tutorial/index.md
+    - tutorial/more_advanced.md
 
 plugins:
   - social

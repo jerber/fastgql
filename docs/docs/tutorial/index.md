@@ -45,7 +45,7 @@ pip install fastgql
     For the sake of simplicity, all code in for this tutorial will be in one file.
 
 <details>
-<summary>👀 Full file preview</summary>
+<summary>Full file 👀</summary>
 
 ```Python
 {!./docs_src/tutorial/movie_super_simple.py!}
