@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastgql"
-packages = [ {include = "fastgql"} ]
+packages = [{ include = "fastgql" }]
 version = "0.3.3"
 description = "The easiest, fastest python GraphQL framework."
 authors = ["Jeremy Berman <jerber@sas.upenn.edu>"]
@@ -34,7 +34,7 @@ fastapi = { extras = ["all"], version = "^0.104.1" }
 edgedb = { version = "^1.7.0", optional = true }
 graphql-core = "^3.2.3"
 devtools = "^0.12.2"
-uvicorn = {extras = ["standard"], version = "*"}
+uvicorn = { extras = ["standard"], version = "*" }
 
 [tool.poetry.extras]
 edgedb = ["edgedb"]
@@ -42,6 +42,9 @@ edgedb = ["edgedb"]
 [tool.poetry.dev-dependencies]
 ruff = '*'
 mypy = '^1.5'
+mkdocs-material = { extras = ["imaging"], version = "^9.4.7" }
+mdx_include = '*'
+
 
 [build-system]
 requires = ["poetry-core"]
