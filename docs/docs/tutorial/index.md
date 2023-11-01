@@ -1,138 +1,142 @@
 # Intro, Installation, and First Steps
 
-## Many of these sections were taken from the [SQLModel docs](https://sqlmodel.tiangolo.com/tutorial/), which are very good at explaining Python concepts. I'm including them here to make things easier.
+This tutorial assumes you know the basics of GraphQL. If you don't, I suggest checking out this great [tutorial](https://graphql.org/learn/) first.
 
-## Type hints (From SQLModel)
+### Create a project and install FastGQL
 
-If you need a refresher about how to use Python type hints (type annotations), check <a href="https://fastapi.tiangolo.com/python-types/" class="external-link" target="_blank">FastAPI's Python types intro</a>.
+Create a folder:
 
-You can also check the <a href="https://mypy.readthedocs.io/en/latest/cheat_sheet_py3.html" class="external-link" target="_blank">mypy cheat sheet</a>.
-
-**FastGQL** uses type annotations for everything, this way you can use a familiar Python syntax and get all the editor support possible, with autocompletion and in-editor error checking.
-
-## Create a Project (from SQLModel)
-
-Please go ahead and create a directory for the project we will work on on this tutorial.
-
-What I normally do is that I create a directory named `code` inside my home/user directory.
-
-And inside of that I create one directory per project.
-
-So, for example:
-
-<div class="termy">
-
-```console
-// Go to the home directory
-$ cd
-// Create a directory for all your code projects
-$ mkdir code
-// Enter into that code directory
-$ cd code
-// Create a directory for this project
-$ mkdir fastgql-tutorial
-// Enter into that directory
-$ cd fastgql-tutorial
+```bash
+mkdir fastgql-tutorial
+cd fastgql-tutorial
 ```
 
-</div>
+Now, we'll create a virtual environment. This allows us to install python libraries scoped to this project.
 
-Make sure you don't name it also `fastgql`, so that you don't end up overriding the name of the package.
+First, ensure you have a python version of 3.10 or greater. You can check this by running:
 
-### Make sure you have Python
-
-Make sure you have an officially supported version of Python.
-
-You can check which version you have with:
-
-<div class="termy">
-
-```console
-$ python3 --version
-Python 3.12
+```
+python --version
 ```
 
-</div>
+If you do not have python 3.10 or greater, install that now.
 
-For now, FastGQL only supports python 3.11 and up.
-
-If you don't have python 3.11 or up installed, go and install that first.
-
-### Create a Python virtual environment (from SQLModel)
-
-When writing Python code, you should **always** use virtual environments in one way or another.
-
-If you don't know what that is, you can read the <a href="https://docs.python.org/3/tutorial/venv.html" class="external-link" target="_blank">official tutorial for virtual environments</a>, it's quite simple.
-
-In very short, a virtual environment is a small directory that contains a copy of Python and all the libraries you need to run your code.
-
-And when you "activate" it, any package that you install, for example with `pip`, will be installed in that virtual environment.
-
-!!! tip " There are other tools to manage virtual environments, like <a href="https://python-poetry.org/" class="external-link" target="_blank">Poetry</a>. "
-
-    And there are alternatives that are particularly useful for deployment like <a href="https://docs.docker.com/get-started/" class="external-link" target="_blank">Docker</a> and other types of containers. In this case, the "virtual environment" is not just the Python standard files and the installed packages, but the whole system.
-
-Go ahead and create a Python virtual environment for this project. And make sure to also upgrade `pip`.
-
-Here are the commands you could use:
-
-=== "Linux, macOS, Linux in Windows"
-
-    <div class="termy">
-
-    ```console
-    // Remember that you might need to use python3.9 or similar 💡
-    // Create the virtual environment using the module "venv"
-    $ python3 -m venv env
-    // ...here it creates the virtual environment in the directory "env"
-    // Activate the virtual environment
-    $ source ./env/bin/activate
-    // Verify that the virtual environment is active
-    # (env) $$ which python
-    // The important part is that it is inside the project directory, at "code/fastgql-tutorial/env/bin/python"
-    /home/leela/code/fastgql-tutorial/env/bin/python
-    // Use the module "pip" to install and upgrade the package "pip" 🤯
-    # (env) $$ python -m pip install --upgrade pip
-    ---> 100%
-    Successfully installed pip
-    ```
-
-    </div>
-
-=== "Windows PowerShell"
-
-    <div class="termy">
-
-    ```console
-    // Create the virtual environment using the module "venv"
-    # >$ python3 -m venv env
-    // ...here it creates the virtual environment in the directory "env"
-    // Activate the virtual environment
-    # >$ .\env\Scripts\Activate.ps1
-    // Verify that the virtual environment is active
-    # (env) >$ Get-Command python
-    // The important part is that it is inside the project directory, at "code\fastgql-tutorial\env\python.exe"
-    CommandType    Name    Version     Source
-    -----------    ----    -------     ------
-    Application    python  0.0.0.0     C:\Users\leela\code\fastgql-tutorial\env\python.exe
-    // Use the module "pip" to install and upgrade the package "pip" 🤯
-    # (env) >$ python3 -m pip install --upgrade pip
-    ---> 100%
-    Successfully installed pip
-    ```
-
-    </div>
-
-## Install **FastGQL**
-
-Now, after making sure we are inside of a virtual environment in some way, we can install **FastGQL**:
-
-<div class="termy">
-
-```console
-# (env) $$ python -m pip install fastgql
----> 100%
-Successfully installed fastgql
+```bash
+python -m venv virtualenv
 ```
 
-</div>
+Now we need to activate the virtual environment.
+
+```bash
+source virtualenv/bin/activate
+```
+
+Now we can install **FastGQL**:
+
+```bash
+pip install fastgql
+```
+
+**FastGQL** installs with [**FastAPI**](https://fastapi.tiangolo.com/) and [**Pydantic V2**](https://docs.pydantic.dev/latest/). You will not need to install a seperate web server library.
+
+### Define the Schema
+
+!!! info
+    For the sake of simplicity, all code in for this tutorial will be in one file.
+
+<details>
+<summary>👀 Full file preview</summary>
+
+```Python
+{!./docs_src/tutorial/movie_super_simple.py!}
+```
+
+</details>
+
+**FastGQL** works by reading objects inheriting from `fastgql.GQL` and constructing a GraphQL schema. It reads both the fields and functions of the object. `GQL` is a simple subclass of `pydantic.BaseModel` and has all of the functionality of a `BaseModel`.
+
+Even the root `Query` is a `GQL` type.
+
+Create the file `schema.py`:
+
+```python title="schema.py"
+from fastapi import FastAPI
+from fastgql import GQL, build_router
+
+class Actor(GQL):
+    name: str
+
+class Movie(GQL):
+    title: str
+    release_year: int
+    actors: list[Actor]
+
+class Query(GQL):
+    def get_movies(self) -> list[Movie]:
+        return [
+            Movie(
+                title="Barbie",
+                release_year=2023,
+                actors=[Actor(name="Margot Robbie")],
+            )
+        ]
+```
+
+### Build our schema and run it
+
+Under the hood, **FastGQL** creates a **FastAPI** router that executes incoming GraphQL queries. If you're unfamiliar with **FastAPI**, it is worth checking out their excellent [docs](https://fastapi.tiangolo.com/).
+
+```python title="schema.py"
+router = build_router(query_models=[Query]) # (1)!
+
+app = FastAPI() # (2)!
+
+app.include_router(router, prefix="/graphql") # (3)!
+```
+
+1. This is where we build the **FastAPI** router with our schema
+2. Initialize a new FastAPI instance for your app. This can be any app, including one already created elsewhere.
+3. Attach the router to the app and include whatever prefix you'd like the GraphQL endpoint to be reached at.
+
+<details>
+<summary>👀 Full file preview</summary>
+
+```Python
+{!./docs_src/tutorial/movie_super_simple.py!}
+```
+
+</details>
+
+The easiest way to run this **FastAPI** server is with [**Uvicorn**](https://www.uvicorn.org/), which is a fast async web server.
+
+```bash
+uvicorn schema:app --reload # (1)!
+```
+
+1. A good explaination of **Uvicorn** can be found [here](https://fastapi.tiangolo.com/#run-it).
+
+### Query it
+
+It is time to execute your first query! Go to `http://0.0.0.0:8000/graphql` where you should see a GUI for GraphQL called GraphiQL.
+
+![](../images/graphiql.png)
+
+Paste this query into the text box and hit the play button:
+
+```graphql
+{
+  getMovies {
+    title
+    releaseYear
+    actors {
+      name
+    }
+  }
+}
+```
+
+You should see the data we made in `schema.py` come back 🎉
+
+![](../images/simple_movies.png)
+
+Now, we will move on to more advanced tutorials!

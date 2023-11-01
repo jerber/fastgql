@@ -1,6 +1,6 @@
 # FastGQL
 
-FastGQL is a python GraphQL library that uses Pydantic models to build GraphQL types. Think FastAPI for GraphQL.
+**FastGQL** is a python GraphQL library that uses Pydantic models to build GraphQL types. Think FastAPI for GraphQL.
 
 ```py
 from fastapi import FastAPI
@@ -20,6 +20,14 @@ app = FastAPI()
 
 app.include_router(router, prefix="/graphql")
 ```
+
+I built **FastGQL** because I wanted a GraphQL framework that
+1) let me use `pydantic.BaseModel`s to define my schema
+2)  gives me the flexibility to build dynamic database queries based on incoming requests
+
+We are now using **FastGQL** in production and have experienced a massive (10x) speedup in average response times because of 2).
+
+You can find out more about how we build dynamic database queries in the Advanced Tutorial section of the docs.
 
 ## Installation
 
