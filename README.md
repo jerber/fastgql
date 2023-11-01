@@ -25,7 +25,7 @@ app.include_router(router, prefix="/graphql")
 I built **FastGQL** because I wanted a GraphQL framework that
 
 1. let me use `pydantic.BaseModel` objects to define my schema
-2. gives me the flexibility to build dynamic database queries based on incoming requests
+2. let me build dynamic database queries based on incoming requests
 
 We are now using **FastGQL** in production and have experienced a massive (10x) speedup in average response times because of 2).
 
