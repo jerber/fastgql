@@ -87,7 +87,7 @@ class Translator:
         # first, flatten and combine them
         has_seen: dict[str, graphql.InlineFragmentNode | graphql.FieldNode] = {}
         while len(selection_q) > 0:
-            sel = selection_q.pop()
+            sel = selection_q.pop(0)
             if isinstance(sel, graphql.FragmentSpreadNode):
                 frag = self.fragment_definitions[sel.name.value]
                 selection_q.extend(frag.selection_set.selections)

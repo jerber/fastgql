@@ -11,7 +11,7 @@ def node_from_path(
     current_val = path.pop(0)
     children_q = [*node.children]
     while len(children_q) > 0:
-        child = children_q.pop()
+        child = children_q.pop(0)
         if isinstance(child, M.FieldNode):
             name = (
                 child.name

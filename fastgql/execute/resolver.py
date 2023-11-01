@@ -158,7 +158,7 @@ class Resolver:
         children_q = [*node.children]
         proms_map: dict[str, T.Awaitable] = {}
         while len(children_q) > 0:
-            child = children_q.pop()
+            child = children_q.pop(0)
             if isinstance(child, M.InlineFragmentNode):
                 if child.type_condition == model.gql_type_name():
                     children_q[:0] = child.children

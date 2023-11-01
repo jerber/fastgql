@@ -92,9 +92,7 @@ class Season(GQL):
     number: int
 
     async def show(self) -> Show:
-        q = """select Season {
-            show: { id, title }
-        } filter .id = <uuid>$id"""
+        q = """select Season { show: { id, title } } filter .id = <uuid>$id"""
         season_d = await query_required_single_json(
             name="season.show", query=q, id=self.id
         )
@@ -104,9 +102,7 @@ class Season(GQL):
 class Query(GQL):
     @staticmethod
     async def account_by_username(username: str) -> Account:
-        q = """select Account {
-            id, username
-        } filter .username = <str>$username"""
+        q = """select Account { id, username } filter .username = <str>$username"""
         account_d = await query_required_single_json(
             name="account_by_username", query=q, username=username
         )

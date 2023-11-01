@@ -65,7 +65,7 @@ class QueryBuilderConfig:
         qb = QueryBuilder()
         children_q = [*node.children]
         while len(children_q) > 0:
-            child = children_q.pop()
+            child = children_q.pop(0)
             if isinstance(child, M.InlineFragmentNode):
                 children_q.extend(child.children)
             else:

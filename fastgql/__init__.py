@@ -14,6 +14,7 @@ from .gql_ast.models import (
     FieldNodeMethod,
     OperationNode,
 )
+from .utils import node_from_path
 
 build_router = SchemaBuilder.build_router
 
@@ -40,4 +41,5 @@ __all__ = [
     "FieldNodeField",
     "FieldNodeMethod",
     "OperationNode",
+    "node_from_path",
 ]
