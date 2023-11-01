@@ -133,8 +133,9 @@ class QueryBuilderConfig:
                                 },
                             }
                             kwargs = {
-                                k: kwargs[k]
-                                for k in inspect.signature(update_qbs).parameters
+                                k: v
+                                for k, v in kwargs.items()
+                                if k in inspect.signature(update_qbs).parameters
                             }
                             _ = validate_call(update_qbs(**kwargs))
                             if inspect.isawaitable(_):
