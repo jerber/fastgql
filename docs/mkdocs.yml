@@ -54,6 +54,10 @@ theme:
 repo_name: 'jerber/fastgql'
 repo_url: 'https://github.com/jerber/fastgql'
 edit_uri: ''
+nav:
+  - FastGQL: index.md
+  - Tutorial - User Guide:
+    - tutorial/index.md
 
 plugins:
   - social
@@ -90,9 +94,9 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-#  - pymdownx.snippets:
+  # - pymdownx.snippets
 #      base_path: ['docs']
-#      check_paths: true
+    #  check_paths: true
   - admonition
   - pymdownx.arithmatex:
       generic: true
@@ -100,6 +104,8 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.superfences
   - attr_list
+  - abbr
+  - pymdownx.snippets
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       # emoji_index: !!python/name:materialx.emoji.twemoji

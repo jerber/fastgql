@@ -3,7 +3,6 @@ import time
 
 import graphql
 from fastapi import Request, Response, BackgroundTasks
-from devtools import debug
 
 from fastgql.gql_ast import models as M
 from fastgql.gql_ast.translator import Translator
@@ -56,6 +55,7 @@ class Executor:
         response: Response,
         bt: BackgroundTasks,
         use_cache: bool,
+        print_timings: bool = False,
     ) -> Result:
         start_for_root_nodes = time.time()
         if use_cache:
@@ -88,12 +88,16 @@ class Executor:
                 schema=self.schema,
                 use_camel_case=self.use_camel_case,
             ).translate()
-            print(f"[TRANSLATING] took {(time.time() - start_translate) * 1_000} ms")
+            if print_timings:
+                print(
+                    f"[TRANSLATING] took {(time.time() - start_translate) * 1_000} ms"
+                )
             if use_cache:
                 self.root_nodes_cache[source] = root_nodes
-        print(
-            f"[ROOT NODES] parsing took {(time.time() - start_for_root_nodes) * 1_000} ms"
-        )
+        if print_timings:
+            print(
+                f"[ROOT NODES] parsing took {(time.time() - start_for_root_nodes) * 1_000} ms"
+            )
         resolver = Resolver(
             use_camel_case=self.use_camel_case,
             info_cls=info_cls,

@@ -46,9 +46,7 @@ class Link:
         T.Union["QueryBuilderConfig", dict[str, "QueryBuilderConfig"]] | None
     ) = None
     path_to_return_cls: tuple[str, ...] | None = None
-    update_qbs: T.Callable[
-        [QueryBuilder, QueryBuilder, str | None, ...], T.Awaitable[None] | None
-    ] = None
+    update_qbs: T.Callable[[..., T.Any], None] = None
 
 
 @dataclass
@@ -110,6 +108,7 @@ class QueryBuilderConfig:
                             child_qb = combine_qbs(
                                 *frag_qbs, nodes_to_include=dangling_children
                             )
+                            child_qb.fields.add("typename := .__type__.name")
                         else:
                             child_qb = await config.from_info(info=info, node=child)
                         if db_name := method_config.db_name:
@@ -121,21 +120,23 @@ class QueryBuilderConfig:
                                 db_expression=db_expression, qb=child_qb
                             )
                         if update_qbs := method_config.update_qbs:
-                            _ = validate_call(
-                                update_qbs(
-                                    qb,
-                                    child_qb,
-                                    child.alias,
-                                    info,
-                                    child,
-                                    **{
-                                        a.name: parse_value(
-                                            variables=info.variables, v=a.value
-                                        )
-                                        for a in original_child.arguments
-                                    },
-                                )
-                            )
+                            kwargs = {
+                                "qb": qb,
+                                "child_qb": child_qb,
+                                "child": child,
+                                "info": info,
+                                **{
+                                    a.name: parse_value(
+                                        variables=info.context.variables, v=a.value
+                                    )
+                                    for a in original_child.arguments
+                                },
+                            }
+                            kwargs = {
+                                k: kwargs[k]
+                                for k in inspect.signature(update_qbs).parameters
+                            }
+                            _ = validate_call(update_qbs(**kwargs))
                             if inspect.isawaitable(_):
                                 await _
         return qb
