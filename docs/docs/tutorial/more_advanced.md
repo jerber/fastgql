@@ -1,5 +1,8 @@
 # Advanced Tutorial
 
+!!! tip
+    I am still working on the docs. Feel free to DM me on Twitter if you have questions or feedback.
+
 The reason I built **FastGQL** was to address the `n+1` problem I had with other frameworks.
 
 Consider this working example using [`EdgeDB`](https://edgedb.com) as the database:
