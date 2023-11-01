@@ -8,7 +8,7 @@ if __name__ == "__main__":
     os.environ["STAGE"] = "local"
     reload = bool(int(os.getenv("RELOAD", 1)))
     uvicorn.run(
-        "tests.for_docs.movies:app",
+        "tests.for_docs.movies_simple:app",
         host=os.environ["HOST"],
         port=int(os.environ["PORT"]),
         reload=reload,

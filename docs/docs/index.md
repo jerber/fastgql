@@ -1,14 +1,5 @@
 # FastGQL
 
-<details>
-<summary>👀 Full file preview</summary>
-
-```Python
-{!./docs_src/build_data.py!}
-```
-
-</details>
-
 FastGQL is a python GraphQL library that uses Pydantic models to build GraphQL types. Think FastAPI for GraphQL.
 
 ```py
@@ -20,9 +11,8 @@ class User(GQL):
     age: int
 
 class Query(GQL):
-    @staticmethod
-    def user() -> User:
-        return User(name="Jeremy", age=27)
+    def user_by_name(self, name: str) -> User:
+        return User(name=name, age=27)
 
 router = build_router(query_models=[Query])
 
@@ -45,114 +35,109 @@ Successfully installed fastgql
 
 ## Example
 
-```py
-import typing as T
-from uuid import UUID
-from pydantic import TypeAdapter
+All you need to do is create objects that inherit from `fastgql.GQL`, which is a simple subclass of `pydantic.BaseModel`. For this example, I am creating a mock schema based on movies. For the functions, you'd usually use a database but I hardcoded the data for this example.
+
+This code generates a GraphQL schema, reading the object fields and functions. Functions can be sync or async.
+
+### Code it
+
+- Create a file `main.py` with:
+
+```py title="main.py"
+from uuid import UUID, uuid4
 from fastapi import FastAPI
-from fastgql import GQL, GQLInterface, build_router
-from .build_data import ( # (1)!
-    accounts_by_username,
-    content_by_person_id,
-    content_by_id,
-    shows_by_id,
-)
+from fastgql import GQL, build_router
 
-Contents = list[T.Union["Movie", "Show"]]
-
-
-class Account(GQL):
+class Account(GQL):  # (4)!
     id: UUID
     username: str
 
-    def watchlist(self) -> Contents:
-        """create a list of movies and shows"""
-        watchlist_raw = accounts_by_username[self.username]["watchlist"]
-        return TypeAdapter(Contents).validate_python(watchlist_raw)
+    def watchlist(self) -> list["Movie"]:  # (1)!
+        # Usually you'd use a database to get the user's watchlist. For this example, it is hardcoded.
+        return [
+            Movie(id=uuid4(), title="Barbie", release_year=2023),
+            Movie(id=uuid4(), title="Oppenheimer", release_year=2023),
+        ]
 
+    def _secret_function(self) -> str:  # (2)!
+        return "this is not exposed!"
 
 class Person(GQL):
     id: UUID
     name: str
 
-    def filmography(self) -> Contents:
-        return TypeAdapter(Contents).validate_python(content_by_person_id[self.id])
+    def filmography(self) -> list["Movie"]:
+        return [
+            Movie(id=uuid4(), title="Barbie", release_year=2023),
+            Movie(id=uuid4(), title="Wolf of Wallstreet", release_year=2013),
+        ]
 
-
-class Content(GQLInterface):
+class Movie(GQL):
     id: UUID
     title: str
-
-    def actors(self) -> list["Person"]:
-        return [Person(**p) for p in content_by_id[self.id]["actors"]]
-
-
-class Movie(Content):
-    id: UUID
     release_year: int
 
-
-class Show(Content):
-    id: UUID
-
-    def seasons(self) -> list["Season"]:
-        return [Season(**s) for s in shows_by_id[self.id]["seasons"]]
-
-    def num_seasons(self) -> int:
-        return len(self.seasons())
-
-
-class Season(GQL):
-    id: UUID
-    number: int
-    show: "Show"
-
+    def actors(self) -> list["Person"]:
+        return [
+            Person(id=uuid4(), name="Margot Robbie"),
+            Person(id=uuid4(), name="Ryan Gosling"),
+        ]
 
 class Query(GQL):
-    @staticmethod
-    async def account_by_username(username: str) -> Account:
-        account = accounts_by_username[username]
-        return Account(**account)
-
+    def account_by_username(self, username: str) -> Account:  # (5)!
+        # Usually you'd use a database to get this account. For this example, it is hardcoded.
+        return Account(id=uuid4(), username=username)
 
 router = build_router(query_models=[Query])
 
-app = FastAPI()
+app = FastAPI()  # (3)!
 
 app.include_router(router, prefix="/graphql")
 ```
 
-1.  ```py
-    from uuid import uuid4, UUID
+1. Usually this would be a database call. There is an advanced tutorial showing this.
+2. Functions that start with `_` are not included in the GraphQL schema.
+3. This is just a normal FastAPI app. `fastgql.build_router` returns a router that can be included on any FastAPI app.
+4. These objects are subclasses of `pydantic.BaseModel`, so anything you'd want to do with a `BaseModel` you can do with these. You'll see how this comes in handy in future tutorials.
+5. All of these functions can be sync or async. In a future tutorial I'll use an async database call to get data.
 
-    people = [
-        {"id": uuid4(), "name": "Margot Robbie"},
-        {"id": uuid4(), "name": "Ryan Gosling"},
-        {"id": uuid4(), "name": "Jeremy Allen White"},
-    ]
-    movies = [
-        {"id": uuid4(), "title": "Barbie", "release_year": 2023, "actors": people[0:2]}
-    ]
-    shows = [
-        {
-            "id": uuid4(),
-            "title": "Game Of Thrones",
-            "seasons": [{"id": uuid4(), "number": x} for x in range(1, 9)],
-            "actors": people[2:],
-        }
-    ]
-    content = [*movies, *shows]
-    content_by_person_id = {}
-    for p in people:
-        person_id = p["id"]
-        filmography = []
-        for c in content:
-            if person_id in [c_actor["id"] for c_actor in c["actors"]]:
-                filmography.append(c)
-        content_by_person_id[person_id] = filmography
-    movies_by_id: dict[UUID, dict] = {m["id"]: m for m in movies}
-    shows_by_id: dict[UUID, dict] = {s["id"]: s for s in shows}
-    content_by_id: dict[UUID, dict] = {c["id"]: c for c in content}
-    accounts = [{"id": uuid4(), "username": "jeremy", "watchlist": content}]
-    accounts_by_username = {a["username"]: a for a in accounts}
-    ```
+### Run it
+
+Run the server with:
+
+<div class="termy">
+
+```console
+$ uvicorn main:app --reload
+
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [28720]
+INFO:     Started server process [28722]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+```
+
+</div>
+
+<details markdown="1">
+<summary>(Taken from FastAPI docs) About the command <code>uvicorn main:app --reload</code>...</summary>
+
+The command `uvicorn main:app` refers to:
+
+- `main`: the file `main.py` (the Python "module").
+- `app`: the object created inside of `main.py` with the line `app = FastAPI()`.
+- `--reload`: make the server restart after code changes. Only do this for development.
+
+</details>
+
+### Check it
+
+Open your browser at <a href="http://127.0.0.1:8000/graphql" class="external-link" target="_blank">http://127.0.0.1:8000/graphql</a>.
+
+You will see a GraphiQL UI. This is your homebase for creating GraphQL queries and checking the schema.
+
+![](images/graphiql.png)
+
+You can see the schema, build queries, and access query history from the icons in the top left respectivly. Here is an example query:
+
+![](images/account_by_username_query.png)
