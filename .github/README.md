@@ -1,1 +1,1 @@
-../docs/index.md
+../docs/docs/index.md
