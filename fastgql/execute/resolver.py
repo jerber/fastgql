@@ -63,7 +63,7 @@ class Resolver:
         for name, param in sig.parameters.items():
             if name in kwargs:
                 val = kwargs[name]
-                if val:
+                if val is not None:
                     val = TypeAdapter(param.annotation).validate_python(
                         val,
                         context={
