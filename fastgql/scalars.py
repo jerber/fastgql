@@ -19,8 +19,8 @@ def parse_datetime_literal(
     return parse_datetime_value(ast_value)
 
 
-DatetimeScalar = GraphQLScalarType(
-    name="Datetime",
+DateTimeScalar = GraphQLScalarType(
+    name="DateTime",
     description="Datetime given as ISO",
     serialize=serialize_datetime,
     parse_value=parse_datetime_value,
@@ -31,4 +31,4 @@ UUIDScalar = GraphQLScalarType(name="UUID")
 DateScalar = GraphQLScalarType(name="Date")
 TimeScalar = GraphQLScalarType(name="Time")
 
-__all__ = ["UUIDScalar", "DateScalar", "TimeScalar", "DatetimeScalar"]
+__all__ = ["UUIDScalar", "DateScalar", "TimeScalar", "DateTimeScalar"]

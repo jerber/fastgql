@@ -17,7 +17,7 @@ from fastapi import APIRouter, Response, Request, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, PlainTextResponse, ORJSONResponse
 
 from fastgql.utils import get_graphiql_html
-from fastgql.scalars import DatetimeScalar, UUIDScalar, DateScalar, TimeScalar
+from fastgql.scalars import DateTimeScalar, UUIDScalar, DateScalar, TimeScalar
 from fastgql.gql_models import GQL, GQLInput, GQLInterface
 from fastgql.info import Info
 from fastgql.depends import Depends
@@ -38,7 +38,7 @@ mapping: dict[type, T.Any] = {
     int: graphql.GraphQLInt,
     float: graphql.GraphQLFloat,
     bool: graphql.GraphQLBoolean,
-    datetime.datetime: DatetimeScalar,
+    datetime.datetime: DateTimeScalar,
     uuid.UUID: UUIDScalar,
     datetime.date: DateScalar,
     datetime.time: TimeScalar,
