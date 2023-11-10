@@ -29,10 +29,10 @@ def parse_raw_content(raw_content: list[dict, T.Any]) -> Contents:
     w_list: Contents = []
     for item in raw_content:
         if item["typename"] == "default::Movie":
-            if movie := item.get('Movie'):
+            if movie := item.get("Movie"):
                 w_list.append(Movie(**movie))
         elif item["typename"] == "default::Show":
-            if show := item.get('Show'):
+            if show := item.get("Show"):
                 w_list.append(Show(**show))
     return w_list
 

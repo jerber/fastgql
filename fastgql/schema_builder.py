@@ -270,19 +270,32 @@ class SchemaBuilder:
         self, field_info: FieldInfo, is_input: bool
     ) -> graphql.GraphQLField | graphql.GraphQLInputField:
         a = field_info.annotation
-        type_ = self.gql_type_from_annotation(a, nullable=False, is_input=is_input)
+        nullable = (
+            False
+            if not is_input
+            else field_info.default is not pydantic_core.PydanticUndefined
+        )
+        type_ = self.gql_type_from_annotation(a, nullable=nullable, is_input=is_input)
         type_._field_info = field_info
         if not is_input:
             field = graphql.GraphQLField(
                 type_=type_, description=field_info.description
             )
         else:
+            # if nullable and default value is None, do not give a default value
+            # the intent is to make this UNSET, not None. As in, either give a str or nothing, but not null
+            if nullable and field_info.default is None:
+                default_value = graphql.Undefined
+            else:
+                default_value = (
+                    field_info.default
+                    if field_info.default is not pydantic_core.PydanticUndefined
+                    else graphql.Undefined
+                )
             field = graphql.GraphQLInputField(
                 type_=type_,
                 description=field_info.description,
-                default_value=field_info.default
-                if field_info.default is not pydantic_core.PydanticUndefined
-                else graphql.Undefined,
+                default_value=default_value,
             )
         return field
 
