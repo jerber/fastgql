@@ -1,7 +1,6 @@
 import typing as T
 import inspect
 from dataclasses import dataclass
-from pydantic import validate_call
 
 from fastgql.info import Info
 from fastgql.gql_ast import models as M
@@ -137,7 +136,7 @@ class QueryBuilderConfig:
                                 for k, v in kwargs.items()
                                 if k in inspect.signature(update_qbs).parameters
                             }
-                            _ = validate_call(update_qbs(**kwargs))
+                            _ = update_qbs(**kwargs)
                             if inspect.isawaitable(_):
                                 await _
         return qb
