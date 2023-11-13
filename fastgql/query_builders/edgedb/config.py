@@ -122,7 +122,8 @@ class QueryBuilderConfig:
                             kwargs = {
                                 "qb": qb,
                                 "child_qb": child_qb,
-                                "child": child,
+                                "node": node,
+                                "child_node": child,
                                 "info": info,
                                 **{
                                     a.name: parse_value(
