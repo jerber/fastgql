@@ -45,7 +45,7 @@ class Link:
         T.Union["QueryBuilderConfig", dict[str, "QueryBuilderConfig"]] | None
     ) = None
     path_to_return_cls: tuple[str, ...] | None = None
-    update_qbs: T.Callable[[..., T.Any], None] = None
+    update_qbs: T.Callable[[..., T.Any], None | T.Awaitable] = None
 
 
 @dataclass
