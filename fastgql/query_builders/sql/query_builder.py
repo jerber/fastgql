@@ -42,7 +42,7 @@ class QueryBuilder(BaseModel):
     children: list[ChildEdge] = Field(default_factory=list)
 
     join: str | None = None
-    filter: str | None = None
+    where: str | None = None
     order_by: str | None = None
     offset: str | None = None
     limit: str | None = None
@@ -113,24 +113,24 @@ class QueryBuilder(BaseModel):
         self.add_variable("limit", limit, replace=replace)
         return self
 
-    def prepend_filter(self, filter: str) -> "QueryBuilder":
-        filter_s = filter
-        if self.filter:
-            filter_s = f"{filter_s} AND ({self.filter})"
-        self.filter = filter_s
+    def prepend_where(self, where: str) -> "QueryBuilder":
+        where_s = where
+        if self.where:
+            where_s = f"{where_s} AND ({self.where})"
+        self.where = where_s
         return self
 
-    def set_filter(
+    def set_where(
         self,
-        filter: str,
+        where: str,
         variables: dict[str, T.Any] | None = None,
-        replace_filter: bool = False,
+        replace_where: bool = False,
         replace_variables: bool = False,
     ) -> "QueryBuilder":
-        if self.filter and not replace_filter:
-            raise QueryBuilderError("Filter already exists.")
+        if self.where and not replace_where:
+            raise QueryBuilderError("Where already exists.")
         self.add_variables(variables=variables, replace=replace_variables)
-        self.filter = filter
+        self.where = where
         return self
 
     def set_join(
@@ -219,8 +219,8 @@ class QueryBuilder(BaseModel):
             new_path = (self.table_name,)
         table_alias = "__".join(new_path).replace('"', "")
         if not path:
-            if table_alias.lower() == self.table_name.lower().replace('"', ''):
-                table_alias = f'_{table_alias}'
+            if table_alias.lower() == self.table_name.lower().replace('"', ""):
+                table_alias = f"_{table_alias}"
         variables = self.variables.copy()
         child_strs = [
             self.build_child(
@@ -238,10 +238,10 @@ class QueryBuilder(BaseModel):
         if not all_fields_strs:
             raise Exception(f"Query Builder {self=} has no fields.")
         fields_s = ", ".join(all_fields_strs)
-        where_str = self.filter
+        where_str = self.where
         if from_where:
-            if self.filter:
-                where_str = f"{from_where} AND {self.filter}"
+            if self.where:
+                where_str = f"{from_where} AND {self.where}"
             else:
                 where_str = from_where
         filter_parts: list[str] = []

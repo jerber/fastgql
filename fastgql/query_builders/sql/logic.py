@@ -8,7 +8,7 @@ from devtools import debug
 
 from fastgql.execute.utils import get_root_type
 from fastgql.info import Info
-from .config import QueryBuilderConfig, Link, Property
+from .config import QueryBuilderConfig, Link, Property, Cardinality
 from .query_builder import QueryBuilder
 
 
@@ -43,10 +43,15 @@ def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> No
         if isinstance(m, graphql.GraphQLObjectType) and hasattr(m, "_pydantic_model")
     ]
     for gql_model in gql_models:
+        table_name = getattr(
+            gql_model._pydantic_model,
+            "sql_table_name",
+            f'"{gql_model._pydantic_model.__name__}"',
+        )
         gql_model._pydantic_model.qb_config_sql = QueryBuilderConfig(
             properties={},
             links={},
-            table_name=f'"{gql_model._pydantic_model.__name__}"',
+            table_name=table_name,
         )
     for gql_model in gql_models:
         pydantic_model = gql_model._pydantic_model
@@ -121,7 +126,7 @@ async def get_qb(info: Info) -> QueryBuilder:
     if type(root_type_s) is list:
         existing_config = None
         for root_type in root_type_s:
-            qb_config: QueryBuilderConfig = getattr(root_type, "qb_config", None)
+            qb_config: QueryBuilderConfig = getattr(root_type, "qb_config_sql", None)
             if qb_config and not qb_config.is_empty():
                 if existing_config:
                     debug(qb_config, existing_config)
@@ -129,6 +134,10 @@ async def get_qb(info: Info) -> QueryBuilder:
                 existing_config = qb_config
         if not existing_config:
             raise Exception("There is no return model with a qb_config.")
-        return await existing_config.from_info(info=info, node=info.node)
+        return await existing_config.from_info(
+            info=info, node=info.node, cardinality=Cardinality.MANY
+        )
     else:
-        return await root_type_s.qb_config_sql.from_info(info=info, node=info.node)
+        return await root_type_s.qb_config_sql.from_info(
+            info=info, node=info.node, cardinality=Cardinality.ONE
+        )

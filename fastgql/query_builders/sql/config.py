@@ -83,7 +83,24 @@ class QueryBuilderConfig:
                     if path_to_value := property_config.path_to_value:
                         qb.sel(alias=child.name, path=path_to_value)
                     if update_qb := property_config.update_qb:
-                        _ = update_qb(qb)
+                        kwargs = {
+                            "qb": qb,
+                            "node": node,
+                            "child_node": child,
+                            "info": info,
+                            **{
+                                a.name: parse_value(
+                                    variables=info.context.variables, v=a.value
+                                )
+                                for a in child.arguments
+                            },
+                        }
+                        kwargs = {
+                            k: v
+                            for k, v in kwargs.items()
+                            if k in inspect.signature(update_qb).parameters
+                        }
+                        _ = update_qb(**kwargs)
                         if inspect.isawaitable(_):
                             await _
                 if child.name in self.links:

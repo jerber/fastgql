@@ -76,7 +76,24 @@ class QueryBuilderConfig:
                         else:
                             qb.fields.add(db_name)
                     if update_qb := property_config.update_qb:
-                        _ = update_qb(qb)
+                        kwargs = {
+                            "qb": qb,
+                            "node": node,
+                            "child_node": child,
+                            "info": info,
+                            **{
+                                a.name: parse_value(
+                                    variables=info.context.variables, v=a.value
+                                )
+                                for a in child.arguments
+                            },
+                        }
+                        kwargs = {
+                            k: v
+                            for k, v in kwargs.items()
+                            if k in inspect.signature(update_qb).parameters
+                        }
+                        _ = update_qb(**kwargs)
                         if inspect.isawaitable(_):
                             await _
                 if child.name in self.links:
