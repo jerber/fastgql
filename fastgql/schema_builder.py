@@ -24,6 +24,7 @@ from fastgql.depends import Depends
 from fastgql.execute.utils import combine_models
 from fastgql.execute.executor import Executor, InfoType, ContextType
 from fastgql.query_builders.edgedb import logic as qb_logic
+from fastgql.query_builders.sql import logic as sql_qb_logic
 from fastgql.context import BaseContext
 
 BASEMODEL_DIR: list[str] = dir(pydantic.BaseModel)
@@ -144,6 +145,9 @@ class SchemaBuilder:
 
         # now build QBs if QBs are found
         qb_logic.build_from_schema(
+            schema=self.schema, use_camel_case=self.use_camel_case
+        )
+        sql_qb_logic.build_from_schema(
             schema=self.schema, use_camel_case=self.use_camel_case
         )
 
