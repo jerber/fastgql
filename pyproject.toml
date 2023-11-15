@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "fastgql"
 packages = [{ include = "fastgql" }]
-version = "0.5.2"
+version = "0.5.3"
 description = "The easiest, fastest python GraphQL framework."
 authors = ["Jeremy Berman <jerber@sas.upenn.edu>"]
 license = "MIT"
@@ -29,15 +29,17 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pydantic = "^2.4.2"
+pydantic = "^2.5.1"
 fastapi = { extras = ["all"], version = "^0.104.1" }
 edgedb = { version = "^1.7.0", optional = true }
+sqlparse = { version = "^0.4.4", optional = true }
 graphql-core = "^3.2.3"
 devtools = "^0.12.2"
 uvicorn = { extras = ["standard"], version = "*" }
 
 [tool.poetry.extras]
 edgedb = ["edgedb"]
+sql = ["sqlparse"]
 
 [tool.poetry.dev-dependencies]
 ruff = '*'

@@ -8,7 +8,7 @@ from devtools import debug
 
 from fastgql.execute.utils import get_root_type
 from fastgql.info import Info
-from .config import QueryBuilderConfig, Link, Property
+from .config import QueryBuilderConfig, Link, Property, Cardinality
 from .query_builder import QueryBuilder
 
 
@@ -22,9 +22,9 @@ def get_qb_config_from_gql_field(
             p = path.pop(0)
             root = get_root_type(root.fields[p])
     if isinstance(root, list):
-        child_qb_config = {cm.name: cm._pydantic_model.qb_config for cm in root}
+        child_qb_config = {cm.name: cm._pydantic_model.qb_config_sql for cm in root}
     else:
-        child_qb_config = root._pydantic_model.qb_config
+        child_qb_config = root._pydantic_model.qb_config_sql
     return child_qb_config
 
 
@@ -43,12 +43,19 @@ def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> No
         if isinstance(m, graphql.GraphQLObjectType) and hasattr(m, "_pydantic_model")
     ]
     for gql_model in gql_models:
-        gql_model._pydantic_model.qb_config = QueryBuilderConfig(
-            properties={}, links={}
+        table_name = getattr(
+            gql_model._pydantic_model,
+            "sql_table_name",
+            f'"{gql_model._pydantic_model.__name__}"',
+        )
+        gql_model._pydantic_model.qb_config_sql = QueryBuilderConfig(
+            properties={},
+            links={},
+            table_name=table_name,
         )
     for gql_model in gql_models:
         pydantic_model = gql_model._pydantic_model
-        config: QueryBuilderConfig = pydantic_model.qb_config
+        config: QueryBuilderConfig = pydantic_model.qb_config_sql
         # first do fields
         for field_name, field_info in pydantic_model.model_fields.items():
             meta_list = field_info.metadata
@@ -85,11 +92,9 @@ def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> No
                             config.properties[name] = meta
 
     # for gql_model in gql_models:
-    #     if gql_model.name == "EventUserPublic":
-    #         print(gql_model.name)
-    #         debug(gql_model._pydantic_model.qb_config)
+    #     debug(gql_model._pydantic_model.qb_config_sql)
     print(
-        f"[EDGEDB QB CONFIG BUILDING] building the qb configs took: {(time.time() - start) * 1000} ms"
+        f"[SQL QB CONFIG BUILDING] building the qb configs took: {(time.time() - start) * 1000} ms"
     )
 
 
@@ -121,7 +126,7 @@ async def get_qb(info: Info) -> QueryBuilder:
     if type(root_type_s) is list:
         existing_config = None
         for root_type in root_type_s:
-            qb_config: QueryBuilderConfig = getattr(root_type, "qb_config", None)
+            qb_config: QueryBuilderConfig = getattr(root_type, "qb_config_sql", None)
             if qb_config and not qb_config.is_empty():
                 if existing_config:
                     debug(qb_config, existing_config)
@@ -129,6 +134,10 @@ async def get_qb(info: Info) -> QueryBuilder:
                 existing_config = qb_config
         if not existing_config:
             raise Exception("There is no return model with a qb_config.")
-        return await existing_config.from_info(info=info, node=info.node)
+        return await existing_config.from_info(
+            info=info, node=info.node, cardinality=Cardinality.MANY
+        )
     else:
-        return await root_type_s.qb_config.from_info(info=info, node=info.node)
+        return await root_type_s.qb_config_sql.from_info(
+            info=info, node=info.node, cardinality=Cardinality.ONE
+        )

@@ -6,7 +6,7 @@ from fastgql.info import Info
 from fastgql.gql_ast import models as M
 from fastgql.execute.utils import parse_value
 from fastgql.utils import node_from_path
-from .query_builder import QueryBuilder, ChildEdge
+from .query_builder import QueryBuilder, ChildEdge, Cardinality
 
 
 def combine_qbs(
@@ -34,13 +34,16 @@ def combine_qbs(
 
 @dataclass
 class Property:
-    db_name: str | None
+    path_to_value: str | None
     update_qb: T.Callable[[QueryBuilder], T.Awaitable[None] | None] = None
 
 
 @dataclass
 class Link:
-    db_name: str | None
+    # table_name: str | None
+    from_where: str | None
+    cardinality: Cardinality
+
     return_cls_qb_config: (
         T.Union["QueryBuilderConfig", dict[str, "QueryBuilderConfig"]] | None
     ) = None
@@ -50,6 +53,8 @@ class Link:
 
 @dataclass
 class QueryBuilderConfig:
+    table_name: str
+
     properties: dict[str, Property]
     links: dict[str, Link]
 
@@ -57,11 +62,15 @@ class QueryBuilderConfig:
         return not self.properties and not self.links
 
     async def from_info(
-        self, info: Info, node: M.FieldNode | M.InlineFragmentNode
+        self,
+        info: Info,
+        node: M.FieldNode | M.InlineFragmentNode,
+        cardinality: Cardinality,
     ) -> QueryBuilder | None:
+        # TODO
         if not node:
             return None
-        qb = QueryBuilder()
+        qb = QueryBuilder(table_name=self.table_name, cardinality=cardinality)
         children_q = [*node.children]
         while len(children_q) > 0:
             child = children_q.pop(0)
@@ -70,11 +79,9 @@ class QueryBuilderConfig:
             else:
                 if child.name in self.properties:
                     property_config = self.properties[child.name]
-                    if db_name := property_config.db_name:
-                        if child.name != db_name:
-                            qb.fields.add(f"{child.name} := .{db_name}")
-                        else:
-                            qb.fields.add(db_name)
+
+                    if path_to_value := property_config.path_to_value:
+                        qb.sel(alias=child.name, path=path_to_value)
                     if update_qb := property_config.update_qb:
                         kwargs = {
                             "qb": qb,
@@ -104,6 +111,7 @@ class QueryBuilderConfig:
                             node=child, path=[*method_config.path_to_return_cls]
                         )
                     if config := method_config.return_cls_qb_config:
+                        # TODO DO NOT WORRY ABOUT THIS FOR NOW
                         if isinstance(config, dict):
                             dangling_children: list[M.FieldNode] = []
                             frag_qbs: list[QueryBuilder] = []
@@ -111,7 +119,11 @@ class QueryBuilderConfig:
                                 if isinstance(child_child, M.InlineFragmentNode):
                                     child_child_qb = await config[
                                         child_child.type_condition
-                                    ].from_info(info=info, node=child_child)
+                                    ].from_info(
+                                        info=info,
+                                        node=child_child,
+                                        cardinality=Cardinality.ONE,
+                                    )  # TODO LATER
                                     child_child_qb.typename = child_child.type_condition
                                     frag_qbs.append(child_child_qb)
                                 elif isinstance(child_child, M.FieldNode):
@@ -124,17 +136,21 @@ class QueryBuilderConfig:
                             child_qb = combine_qbs(
                                 *frag_qbs, nodes_to_include=dangling_children
                             )
-                            child_qb.fields.add("typename := .__type__.name")
+                            # child_qb.fields.add("typename := .__type__.name") # TODO
                         else:
-                            child_qb = await config.from_info(info=info, node=child)
-                        if db_name := method_config.db_name:
-                            name_to_use = child.alias or child.name
-                            db_expression = (
-                                None if name_to_use == db_name else f".{db_name}"
+                            child_qb = await config.from_info(
+                                info=info,
+                                node=child,
+                                cardinality=method_config.cardinality,
+                            )  # TODO LATER
+
+                        if from_where := method_config.from_where:
+                            qb.add_child(
+                                child=child_qb,
+                                alias=child.alias or child.name,
+                                from_where=from_where,
                             )
-                            qb.children[name_to_use] = ChildEdge(
-                                db_expression=db_expression, qb=child_qb
-                            )
+
                         if update_qbs := method_config.update_qbs:
                             kwargs = {
                                 "qb": qb,
