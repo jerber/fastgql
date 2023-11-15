@@ -81,6 +81,8 @@ def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> No
                                     )
                                 )
                             config.links[name] = meta
+                        elif isinstance(meta, Property):
+                            config.properties[name] = meta
 
     # for gql_model in gql_models:
     #     if gql_model.name == "EventUserPublic":
