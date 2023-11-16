@@ -36,6 +36,11 @@ class User(GQL):
         return f"lil {self.name}"
 
 
+    def artists(self) -> T.Annotated[list["Artist"], Link(
+        cardinality=Cardinality.MANY, from_where='FROM "Artist.sellers" JOIN "Artist" $current ON "Artist.sellers".source = $current.id WHERE "Artist.sellers".target = $parent.id'
+    )]:
+        ...
+
 def update_qbs_bookings(child_qb: QueryBuilder) -> None:
     child_qb.set_where("status_v2 = 'confirmed'")
 
@@ -90,6 +95,32 @@ class Artist(GQL):
         int, Property(update_qb=bookings_count_update_qb, path_to_value=None)
     ]:
         return 9
+
+    def sellers(
+        self
+    ) -> T.Annotated[
+        list[User],
+        Link(
+            cardinality=Cardinality.MANY,
+            from_where='FROM "Artist.sellers" JOIN "User" $current ON "Artist.sellers".target = $current.id WHERE "Artist.sellers".source = $parent.id',
+
+        ),
+    ]:
+        """
+        # this is what you want:
+        SELECT json_build_object('sellers',
+                         (SELECT json_agg(Artist__User_json) AS Artist__User_json_agg
+                          FROM (SELECT json_build_object('id', Artist__User.id, 'name', Artist__User.name) AS Artist__User_json
+
+                                FROM "Artist.sellers"
+                                         JOIN "User" Artist__User ON "Artist.sellers".target = Artist__User.id
+
+                                WHERE "Artist.sellers".source = _Artist.id) AS Artist__Booking_json_sub)) AS _Artist_json
+        FROM "Artist" _Artist
+        WHERE _Artist.slug = 'penningtonstationband'
+        :return:
+        """
+        ...
 
 
 class Booking(GQL):

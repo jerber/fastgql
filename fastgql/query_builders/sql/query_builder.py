@@ -258,11 +258,16 @@ class QueryBuilder(BaseModel):
         if self.limit:
             filter_parts.append(self.limit)
         filter_parts_s = "\n".join(filter_parts)
+        # TODO re from -> not sure if this is the right thing... want something more sturdy
+        if 'from' not in filter_parts_s.lower():
+            from_line = f"FROM {self.table_name} {table_alias}"
+        else:
+            from_line = ''
         s = f"""
 SELECT json_build_object(
     {fields_s}
 ) AS {table_alias}_json
-FROM {self.table_name} {table_alias}
+{from_line}
 {filter_parts_s}
 """.strip()
         if self.cardinality == Cardinality.MANY:
