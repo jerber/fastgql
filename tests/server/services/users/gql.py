@@ -35,11 +35,17 @@ class User(GQL):
         """
         return f"lil {self.name}"
 
-
-    def artists(self) -> T.Annotated[list["Artist"], Link(
-        cardinality=Cardinality.MANY, from_where='FROM "Artist.sellers" JOIN "Artist" $current ON "Artist.sellers".source = $current.id WHERE "Artist.sellers".target = $parent.id'
-    )]:
+    def artists(
+        self
+    ) -> T.Annotated[
+        list["Artist"],
+        Link(
+            cardinality=Cardinality.MANY,
+            from_where='FROM "Artist.sellers" JOIN "Artist" $current ON "Artist.sellers".source = $current.id WHERE "Artist.sellers".target = $parent.id',
+        ),
+    ]:
         ...
+
 
 def update_qbs_bookings(child_qb: QueryBuilder) -> None:
     child_qb.set_where("status_v2 = 'confirmed'")
@@ -103,7 +109,6 @@ class Artist(GQL):
         Link(
             cardinality=Cardinality.MANY,
             from_where='FROM "Artist.sellers" JOIN "User" $current ON "Artist.sellers".target = $current.id WHERE "Artist.sellers".source = $parent.id',
-
         ),
     ]:
         """

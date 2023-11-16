@@ -259,10 +259,10 @@ class QueryBuilder(BaseModel):
             filter_parts.append(self.limit)
         filter_parts_s = "\n".join(filter_parts)
         # TODO re from -> not sure if this is the right thing... want something more sturdy
-        if 'from' not in filter_parts_s.lower():
+        if "from" not in filter_parts_s.lower():
             from_line = f"FROM {self.table_name} {table_alias}"
         else:
-            from_line = ''
+            from_line = ""
         s = f"""
 SELECT json_build_object(
     {fields_s}
@@ -341,6 +341,9 @@ FROM (
             path = f"$current.{alias}"
         self.selections.append(Selection(alias=alias, path=path, variables=variables))
         return self
+
+    def add_sel(self, sel: Selection) -> "QueryBuilder":
+        return self.sel(alias=sel.alias, path=sel.path, variables=sel.variables)
 
     def add_child(
         self, child: "QueryBuilder", alias: str, from_where: str
