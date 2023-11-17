@@ -33,6 +33,11 @@ class Selection(BaseModel):
     variables: dict[str, T.Any] | None = None
 
 
+class CTE(BaseModel):
+    cte_str: str
+    join_str: str
+
+
 class QueryBuilder(BaseModel):
     table_name: str
     # table_alias: str
@@ -40,6 +45,8 @@ class QueryBuilder(BaseModel):
     selections: list[Selection] = Field(default_factory=list)
     variables: dict[str, T.Any] = Field(default_factory=dict)
     children: list[ChildEdge] = Field(default_factory=list)
+
+    ctes: list[CTE] = Field(default_factory=list)
 
     join: str | None = None
     where: str | None = None
@@ -118,6 +125,13 @@ class QueryBuilder(BaseModel):
         if self.where:
             where_s = f"{where_s} AND ({self.where})"
         self.where = where_s
+        return self
+
+    def add_cte(
+        self, cte_str: str, join_str: str, variables: dict[str, T.Any] | None = None
+    ) -> "QueryBuilder":
+        self.add_variables(variables)
+        self.ctes.append(CTE(cte_str=cte_str, join_str=join_str))
         return self
 
     def set_where(
@@ -263,11 +277,15 @@ class QueryBuilder(BaseModel):
             from_line = f"FROM {self.table_name} {table_alias}"
         else:
             from_line = ""
+        cte_str = ",\n".join([cte.cte_str for cte in self.ctes])
+        cte_join_str = "\n".join([cte.join_str for cte in self.ctes])
         s = f"""
+{cte_str}
 SELECT json_build_object(
     {fields_s}
 ) AS {table_alias}_json
 {from_line}
+{cte_join_str}
 {filter_parts_s}
 """.strip()
         if self.cardinality == Cardinality.MANY:
@@ -305,6 +323,17 @@ FROM (
         if format_sql:
             s = sqlparse.format(s, reindent=True, keyword_case="upper")
         return s, v_list
+
+    def build_from_query(
+        self,
+        query: str,
+        table_alias: str,
+        variables: dict[str, T.Any] = None,
+        format_sql: bool = True,
+    ) -> tuple[str, list[T.Any]]:
+        # TODO to implement
+
+        self.from_query(query=query, variables=variables)
 
     @staticmethod
     def prepare_query(sql: str, params: dict[str, T.Any]) -> tuple[str, list[T.Any]]:
