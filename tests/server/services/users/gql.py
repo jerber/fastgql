@@ -19,14 +19,14 @@ from devtools import debug
 class User(GQL):
     sql_table_name: T.ClassVar[str] = '"User"'
 
-    id: T.Annotated[UUID, Property(path_to_value="$current.id")] = Field(
+    id: T.Annotated[UUID, Property(path="$current.id")] = Field(
         ..., description="ID for user."
     )
-    name: T.Annotated[str, Property(path_to_value="$current.name")] = None
+    name: T.Annotated[str, Property(path="$current.name")] = None
     first_name: T.Annotated[
-        str, Property(path_to_value="split_part($current.name, ' ', 1)")
+        str, Property(path="split_part($current.name, ' ', 1)")
     ] = None
-    slug: T.Annotated[str, Property(path_to_value="$current.slug")] = None
+    slug: T.Annotated[str, Property(path="$current.slug")] = None
 
     def nickname(self) -> str:
         """
@@ -41,14 +41,14 @@ class User(GQL):
         list["Artist"],
         Link(
             cardinality=Cardinality.MANY,
-            from_where='FROM "Artist.sellers" JOIN "Artist" $current ON "Artist.sellers".source = $current.id WHERE "Artist.sellers".target = $parent.id',
+            from_='FROM "Artist.sellers" JOIN "Artist" $current ON "Artist.sellers".source = $current.id WHERE "Artist.sellers".target = $parent.id',
         ),
     ]:
         ...
 
 
 def update_qbs_bookings(child_qb: QueryBuilder) -> None:
-    child_qb.set_where("status_v2 = 'confirmed'")
+    child_qb.and_where("status_v2 = 'confirmed'")
 
 
 def bookings_count_update_qb(
@@ -58,7 +58,7 @@ def bookings_count_update_qb(
     limit: int,
 ) -> None:
     qb.sel(
-        alias=child_node.alias or child_node.name,
+        name=child_node.alias or child_node.name,
         path=f'(SELECT count(*) FROM "Booking" WHERE "Booking".artist_id = $current.id AND status_v2 = $status LIMIT {limit})',
         variables={"status": status},
     )
@@ -68,18 +68,18 @@ def bookings_count_update_qb(
 class Artist(GQL):
     sql_table_name: T.ClassVar[str] = '"Artist"'
 
-    id: T.Annotated[UUID, Property(path_to_value="$current.id")] = Field(
+    id: T.Annotated[UUID, Property(path="$current.id")] = Field(
         ..., description="ID for artist."
     )
-    name: T.Annotated[str, Property(path_to_value="$current.name")] = None
-    slug: T.Annotated[str, Property(path_to_value="$current.slug")] = None
+    name: T.Annotated[str, Property(path="$current.name")] = None
+    slug: T.Annotated[str, Property(path="$current.slug")] = None
 
     def bookings(
         self
     ) -> T.Annotated[
         list["Booking"],
         Link(
-            from_where="$current.artist_id = $parent.id",
+            from_='FROM "Booking" $current WHERE $current.artist_id = $parent.id',
             cardinality=Cardinality.MANY,
             update_qbs=update_qbs_bookings,
         ),
@@ -89,7 +89,7 @@ class Artist(GQL):
     bookings_count: T.Annotated[
         int,
         Property(
-            path_to_value='(SELECT count(*) FROM "Booking" WHERE "Booking".artist_id = $current.id)'
+            path='(SELECT count(*) FROM "Booking" WHERE "Booking".artist_id = $current.id)'
         ),
     ] = None
 
@@ -97,9 +97,7 @@ class Artist(GQL):
     # updating the qb
     def bookings_count_filtered(
         self, status: str, limit: int
-    ) -> T.Annotated[
-        int, Property(update_qb=bookings_count_update_qb, path_to_value=None)
-    ]:
+    ) -> T.Annotated[int, Property(update_qb=bookings_count_update_qb, path=None)]:
         return 9
 
     def sellers(
@@ -108,7 +106,7 @@ class Artist(GQL):
         list[User],
         Link(
             cardinality=Cardinality.MANY,
-            from_where='FROM "Artist.sellers" JOIN "User" $current ON "Artist.sellers".target = $current.id WHERE "Artist.sellers".source = $parent.id',
+            from_='FROM "Artist.sellers" JOIN "User" $current ON "Artist.sellers".target = $current.id WHERE "Artist.sellers".source = $parent.id',
         ),
     ]:
         """
@@ -131,9 +129,9 @@ class Artist(GQL):
 class Booking(GQL):
     sql_table_name: T.ClassVar[str] = '"Booking"'
 
-    id: T.Annotated[UUID, Property(path_to_value="$current.id")] = None
+    id: T.Annotated[UUID, Property(path="$current.id")] = None
     start_time: T.Annotated[
-        datetime.datetime, Property(path_to_value="$current.start_time")
+        datetime.datetime, Property(path="$current.start_time")
     ] = None
 
 
@@ -161,7 +159,7 @@ class Query(GQL):
     async def get_artist_by_slug(
         slug: str, qb: QueryBuilder = Depends(get_qb)
     ) -> Artist | None:
-        s, v = qb.set_where("$current.slug = $slug", {"slug": slug}).build_root(
+        s, v = qb.and_where("$current.slug = $slug", {"slug": slug}).build_root(
             format_sql=True
         )
         print(s, v)

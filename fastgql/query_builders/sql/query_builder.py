@@ -21,16 +21,17 @@ class Cardinality(str, Enum):
     MANY = "MANY"
 
 
-class ChildEdge(BaseModel):
-    qb: "QueryBuilder"
-    name: str
-    from_where: str
-
-
 class Selection(BaseModel):
-    alias: str
+    name: str
+
+
+class SelectionField(Selection):
     path: str
     variables: dict[str, T.Any] | None = None
+
+
+class SelectionSub(Selection):
+    qb: "QueryBuilder"
 
 
 class CTE(BaseModel):
@@ -42,14 +43,13 @@ class QueryBuilder(BaseModel):
     table_name: str
     # table_alias: str
     cardinality: Cardinality
-    selections: list[Selection] = Field(default_factory=list)
+    selections: list[SelectionField | SelectionSub] = Field(default_factory=list)
     variables: dict[str, T.Any] = Field(default_factory=dict)
-    children: list[ChildEdge] = Field(default_factory=list)
 
     ctes: list[CTE] = Field(default_factory=list)
 
-    join: str | None = None
-    where: str | None = None
+    from_: str | None = None
+
     order_by: str | None = None
     offset: str | None = None
     limit: str | None = None
@@ -120,13 +120,6 @@ class QueryBuilder(BaseModel):
         self.add_variable("limit", limit, replace=replace)
         return self
 
-    def prepend_where(self, where: str) -> "QueryBuilder":
-        where_s = where
-        if self.where:
-            where_s = f"{where_s} AND ({self.where})"
-        self.where = where_s
-        return self
-
     def add_cte(
         self, cte_str: str, join_str: str, variables: dict[str, T.Any] | None = None
     ) -> "QueryBuilder":
@@ -134,30 +127,47 @@ class QueryBuilder(BaseModel):
         self.ctes.append(CTE(cte_str=cte_str, join_str=join_str))
         return self
 
-    def set_where(
+    def set_from(
+        self,
+        from_: str,
+        variables: dict[str, T.Any] | None = None,
+        replace_from: bool = False,
+        replace_variables: bool = False,
+    ) -> "QueryBuilder":
+        if self.from_ and not replace_from:
+            raise QueryBuilderError("from_ already exists.")
+        self.add_variables(variables=variables, replace=replace_variables)
+        self.from_ = from_
+        return self
+
+    def and_where(
         self,
         where: str,
         variables: dict[str, T.Any] | None = None,
-        replace_where: bool = False,
-        replace_variables: bool = False,
-    ) -> "QueryBuilder":
-        if self.where and not replace_where:
-            raise QueryBuilderError("Where already exists.")
-        self.add_variables(variables=variables, replace=replace_variables)
-        self.where = where
+    ):
+        self.add_variables(variables=variables, replace=False)
+        if not self.from_:
+            self.from_ = "*FROM*"
+        if "where" in self.from_.lower():
+            where_str = f" AND {where}"
+        else:
+            where_str = f" WHERE {where}"
+        self.from_ = f"{self.from_ or '*FROM*'} {where_str}"
         return self
 
-    def set_join(
+    def or_where(
         self,
-        join: str,
+        where: str,
         variables: dict[str, T.Any] | None = None,
-        replace_join: bool = False,
-        replace_variables: bool = False,
-    ) -> "QueryBuilder":
-        if self.join and not replace_join:
-            raise QueryBuilderError("Join already exists.")
-        self.add_variables(variables=variables, replace=replace_variables)
-        self.join = join
+    ):
+        self.add_variables(variables=variables, replace=False)
+        if not self.from_:
+            self.from_ = "*FROM*"
+        if "where" in self.from_:
+            where_str = f" OR {where}"
+        else:
+            where_str = f" WHERE {where}"
+        self.from_ = f"{self.from_ or '*FROM*'} {where_str}"
         return self
 
     def set_order_by(
@@ -190,15 +200,19 @@ class QueryBuilder(BaseModel):
         self.pattern_to_replace = pattern_to_replace
         return self
 
-    def build_child(
+    def build_subquery(
         self,
-        edge: "ChildEdge",
+        name: str,
+        qb: "QueryBuilder",
         path: tuple[str, ...],
         parent_table_alias: str,
         variables: dict,
+        order_fields_alphabetically: bool,
     ) -> str:
-        s, v = edge.qb.build(
-            from_where=edge.from_where, parent_table_alias=parent_table_alias, path=path
+        s, v = qb.build(
+            parent_table_alias=parent_table_alias,
+            path=path,
+            order_fields_alphabetically=order_fields_alphabetically,
         )
         for var_name, var_val in v.items():
             if var_name in variables:
@@ -206,7 +220,7 @@ class QueryBuilder(BaseModel):
                     continue
                 # must change the name for the child
                 new_var_name = self.build_child_var_name(
-                    child_name=edge.name,
+                    child_name=name,
                     var_name=var_name,
                     variables_to_use=variables,
                 )
@@ -217,12 +231,11 @@ class QueryBuilder(BaseModel):
             else:
                 variables[var_name] = var_val
 
-        s = f"'{edge.name}', ({s})"
+        s = f"'{name}', ({s})"
         return s
 
     def build(
         self,
-        from_where: str | None,
         parent_table_alias: str | None,
         path: tuple[str, ...] | None,
         order_fields_alphabetically: bool = True,
@@ -236,35 +249,30 @@ class QueryBuilder(BaseModel):
             if table_alias.lower() == self.table_name.lower().replace('"', ""):
                 table_alias = f"_{table_alias}"
         variables = self.variables.copy()
-        child_strs = [
-            self.build_child(
-                edge=child_edge,
+        subquery_strs = [
+            self.build_subquery(
+                name=sel_sub.name,
+                qb=sel_sub.qb,
                 path=new_path,
                 variables=variables,
                 parent_table_alias=table_alias,
+                order_fields_alphabetically=order_fields_alphabetically,
             )
-            for child_edge in self.children
+            for sel_sub in self.selections
+            if isinstance(sel_sub, SelectionSub)
         ]
-        selection_strs = [f"'{sel.alias}', {sel.path}" for sel in self.selections]
-        all_fields_strs = [*selection_strs, *child_strs]
+        selection_strs = [
+            f"'{sel.name}', {sel.path}"
+            for sel in self.selections
+            if isinstance(sel, SelectionField)
+        ]
+        all_fields_strs = [*selection_strs, *subquery_strs]
         if order_fields_alphabetically:
             all_fields_strs.sort()
         if not all_fields_strs:
             raise Exception(f"Query Builder {self=} has no fields.")
         fields_s = ", ".join(all_fields_strs)
-        where_str = self.where
-        if from_where:
-            if self.where:
-                where_str = f"{from_where} AND {self.where}"
-            else:
-                where_str = from_where
         filter_parts: list[str] = []
-        if self.join:
-            filter_parts.append(f"{self.join}")
-        if where_str:
-            if "where" not in where_str.lower():
-                where_str = f"WHERE {where_str}"
-            filter_parts.append(f"{where_str}")
         if self.order_by:
             filter_parts.append(f"ORDER BY {self.order_by}")
         if self.offset:
@@ -272,19 +280,22 @@ class QueryBuilder(BaseModel):
         if self.limit:
             filter_parts.append(self.limit)
         filter_parts_s = "\n".join(filter_parts)
-        # TODO re from -> not sure if this is the right thing... want something more sturdy
-        if "from" not in filter_parts_s.lower():
-            from_line = f"FROM {self.table_name} {table_alias}"
-        else:
-            from_line = ""
         cte_str = ",\n".join([cte.cte_str for cte in self.ctes])
         cte_join_str = "\n".join([cte.join_str for cte in self.ctes])
+        # now do from_
+        if not self.from_:
+            self.from_ = "*FROM*"
+        self.from_ = self.from_.replace(
+            "*FROM*", f"FROM {self.table_name} {table_alias}"
+        )
+        if not self.from_ or not self.from_.lower().startswith("from "):
+            self.from_ = f"FROM {self.table_name} {table_alias} {self.from_}"
         s = f"""
 {cte_str}
 SELECT json_build_object(
     {fields_s}
 ) AS {table_alias}_json
-{from_line}
+{self.from_}
 {cte_join_str}
 {filter_parts_s}
 """.strip()
@@ -305,13 +316,11 @@ FROM (
         self,
         format_sql: bool = False,
         order_fields_alphabetically: bool = False,
-        from_where: str = None,
         parent_table_alias: str = None,
         path: tuple[str, ...] = None,
     ) -> tuple[str, list[T.Any]]:
         rr = self.build(
             order_fields_alphabetically=order_fields_alphabetically,
-            from_where=from_where,
             parent_table_alias=parent_table_alias,
             path=path,
         )
@@ -363,19 +372,26 @@ FROM (
         return sql, values
 
     def sel(
-        self, alias: str, path: str = None, variables: dict[str, T.Any] | None = None
+        self, name: str, path: str = None, variables: dict[str, T.Any] | None = None
     ) -> "QueryBuilder":
         self.add_variables(variables)
         if not path:
-            path = f"$current.{alias}"
-        self.selections.append(Selection(alias=alias, path=path, variables=variables))
+            path = f"$current.{name}"
+        self.selections.append(
+            SelectionField(name=name, path=path, variables=variables)
+        )
         return self
 
-    def add_sel(self, sel: Selection) -> "QueryBuilder":
-        return self.sel(alias=sel.alias, path=sel.path, variables=sel.variables)
-
-    def add_child(
-        self, child: "QueryBuilder", alias: str, from_where: str
-    ) -> "QueryBuilder":
-        self.children.append(ChildEdge(qb=child, name=alias, from_where=from_where))
+    def sel_sub(self, name: str, qb: "QueryBuilder") -> "QueryBuilder":
+        self.selections.append(SelectionSub(name=name, qb=qb))
         return self
+
+    def add_sel(self, sel: SelectionField | SelectionSub) -> "QueryBuilder":
+        if isinstance(sel, SelectionField):
+            return self.sel(name=sel.name, path=sel.path, variables=sel.variables)
+        elif isinstance(sel, SelectionSub):
+            return self.sel_sub(name=sel.name, qb=sel.qb)
+        else:
+            raise Exception(
+                f"Can only add selections for SelectionField or SelectionSub, not {type(sel)}"
+            )

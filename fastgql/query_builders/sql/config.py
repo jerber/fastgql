@@ -6,7 +6,7 @@ from fastgql.info import Info
 from fastgql.gql_ast import models as M
 from fastgql.execute.utils import parse_value
 from fastgql.utils import node_from_path
-from .query_builder import QueryBuilder, ChildEdge, Cardinality
+from .query_builder import QueryBuilder, Cardinality
 
 
 def combine_qbs(
@@ -34,14 +34,14 @@ def combine_qbs(
 
 @dataclass
 class Property:
-    path_to_value: str | None
+    path: str | None
     update_qb: T.Callable[[QueryBuilder], T.Awaitable[None] | None] = None
 
 
 @dataclass
 class Link:
     # table_name: str | None
-    from_where: str | None
+    from_: str | None
     cardinality: Cardinality
 
     return_cls_qb_config: (
@@ -80,8 +80,8 @@ class QueryBuilderConfig:
                 if child.name in self.properties:
                     property_config = self.properties[child.name]
 
-                    if path_to_value := property_config.path_to_value:
-                        qb.sel(alias=child.name, path=path_to_value)
+                    if path_to_value := property_config.path:
+                        qb.sel(name=child.name, path=path_to_value)
                     if update_qb := property_config.update_qb:
                         kwargs = {
                             "qb": qb,
@@ -144,11 +144,11 @@ class QueryBuilderConfig:
                                 cardinality=method_config.cardinality,
                             )  # TODO LATER
 
-                        if from_where := method_config.from_where:
-                            qb.add_child(
-                                child=child_qb,
-                                alias=child.alias or child.name,
-                                from_where=from_where,
+                        if from_where := method_config.from_:
+                            child_qb.from_ = from_where
+                            qb.sel_sub(
+                                name=child.alias or child.name,
+                                qb=child_qb,
                             )
 
                         if update_qbs := method_config.update_qbs:
