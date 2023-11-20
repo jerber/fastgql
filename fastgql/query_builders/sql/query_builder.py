@@ -49,6 +49,7 @@ class QueryBuilder(BaseModel):
     ctes: list[CTE] = Field(default_factory=list)
 
     from_: str | None = None
+    where: str | None = None
 
     order_by: str | None = None
     offset: str | None = None
@@ -144,30 +145,39 @@ class QueryBuilder(BaseModel):
         self,
         where: str,
         variables: dict[str, T.Any] | None = None,
-    ):
-        self.add_variables(variables=variables, replace=False)
-        if not self.from_:
-            self.from_ = "*FROM*"
-        if "where" in self.from_.lower():
-            where_str = f" AND {where}"
+        replace_variables: bool = False,
+    ) -> "QueryBuilder":
+        self.add_variables(variables=variables, replace=replace_variables)
+        if not self.where:
+            self.where = where
         else:
-            where_str = f" WHERE {where}"
-        self.from_ = f"{self.from_ or '*FROM*'} {where_str}"
+            self.where = f"{self.where} AND {where}"
         return self
 
     def or_where(
         self,
         where: str,
         variables: dict[str, T.Any] | None = None,
-    ):
-        self.add_variables(variables=variables, replace=False)
-        if not self.from_:
-            self.from_ = "*FROM*"
-        if "where" in self.from_:
-            where_str = f" OR {where}"
+        replace_variables: bool = False,
+    ) -> "QueryBuilder":
+        self.add_variables(variables=variables, replace=replace_variables)
+        if not self.where:
+            self.where = where
         else:
-            where_str = f" WHERE {where}"
-        self.from_ = f"{self.from_ or '*FROM*'} {where_str}"
+            self.where = f"{self.where} OR {where}"
+        return self
+
+    def set_where(
+        self,
+        where: str,
+        variables: dict[str, T.Any] | None = None,
+        replace_where: bool = False,
+        replace_variables: bool = False,
+    ) -> "QueryBuilder":
+        if self.where and not replace_where:
+            raise QueryBuilderError("Where by already exists.")
+        self.add_variables(variables=variables, replace=replace_variables)
+        self.where = where
         return self
 
     def set_order_by(
@@ -273,6 +283,8 @@ class QueryBuilder(BaseModel):
             raise Exception(f"Query Builder {self=} has no fields.")
         fields_s = ", ".join(all_fields_strs)
         filter_parts: list[str] = []
+        if self.where:
+            filter_parts.append(f"WHERE {self.where}")
         if self.order_by:
             filter_parts.append(f"ORDER BY {self.order_by}")
         if self.offset:
@@ -280,8 +292,6 @@ class QueryBuilder(BaseModel):
         if self.limit:
             filter_parts.append(self.limit)
         filter_parts_s = "\n".join(filter_parts)
-        cte_str = ",\n".join([cte.cte_str for cte in self.ctes])
-        cte_join_str = "\n".join([cte.join_str for cte in self.ctes])
         # now do from_
         if not self.from_:
             self.from_ = "*FROM*"
@@ -290,6 +300,10 @@ class QueryBuilder(BaseModel):
         )
         if not self.from_ or not self.from_.lower().startswith("from "):
             self.from_ = f"FROM {self.table_name} {table_alias} {self.from_}"
+
+        cte_str = ",\n".join([cte.cte_str for cte in self.ctes])
+        cte_join_str = "\n".join([cte.join_str for cte in self.ctes])
+
         s = f"""
 {cte_str}
 SELECT json_build_object(
