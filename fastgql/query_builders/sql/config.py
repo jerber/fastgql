@@ -158,6 +158,7 @@ class QueryBuilderConfig:
                                 "node": node,
                                 "child_node": child,
                                 "info": info,
+                                "original_child": original_child,
                                 **{
                                     a.name: parse_value(
                                         variables=info.context.variables, v=a.value
