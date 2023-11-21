@@ -320,12 +320,12 @@ FROM (
     {s}
 ) as {table_alias}_json_sub
             """.strip()
+        if self.full_query_str:
+            s = self.full_query_str.replace(self.pattern_to_replace, s)
         # now replace the values
         s = s.replace("$current", table_alias)
         if parent_table_alias:
             s = s.replace("$parent", parent_table_alias)
-        if self.full_query_str:
-            s = self.full_query_str.replace(self.pattern_to_replace, s)
         return s, variables
 
     def build_root(
