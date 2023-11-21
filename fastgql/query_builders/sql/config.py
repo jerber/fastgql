@@ -1,6 +1,7 @@
 import typing as T
 import inspect
 from dataclasses import dataclass
+from pydantic import TypeAdapter
 
 from fastgql.info import Info
 from fastgql.gql_ast import models as M
@@ -152,26 +153,37 @@ class QueryBuilderConfig:
                             )
 
                         if update_qbs := method_config.update_qbs:
-                            kwargs = {
-                                "qb": qb,
-                                "child_qb": child_qb,
-                                "node": node,
-                                "child_node": child,
-                                "info": info,
-                                "original_child": original_child,
-                                **{
-                                    a.name: parse_value(
-                                        variables=info.context.variables, v=a.value
-                                    )
-                                    for a in original_child.arguments
-                                },
+                            new_kwargs: dict[str, T.Any] = {}
+                            sig = inspect.signature(update_qbs)
+                            args_by_name: dict[str, M.Argument] = {
+                                a.name: a for a in original_child.arguments
                             }
-                            kwargs = {
-                                k: v
-                                for k, v in kwargs.items()
-                                if k in inspect.signature(update_qbs).parameters
-                            }
-                            _ = update_qbs(**kwargs)
+                            for name, param in sig.parameters.items():
+                                if name in args_by_name:
+                                    arg = args_by_name[name]
+                                    val = arg.value
+                                    if val is not None:
+                                        # TODO get use camel case...
+                                        val = TypeAdapter(
+                                            param.annotation
+                                        ).validate_python(
+                                            val, context={"_use_camel_case": True}
+                                        )
+                                    new_kwargs[name] = val
+                                elif name == "qb":
+                                    new_kwargs[name] = qb
+                                elif name == "child_qb":
+                                    new_kwargs[name] = child_qb
+                                elif name == "node":
+                                    new_kwargs[name] = node
+                                elif name == "child_node":
+                                    new_kwargs[name] = child
+                                elif name == "info":
+                                    new_kwargs[name] = info
+                                elif name == "original_child":
+                                    new_kwargs[name] = original_child
+
+                            _ = update_qbs(**new_kwargs)
                             if inspect.isawaitable(_):
                                 await _
         return qb

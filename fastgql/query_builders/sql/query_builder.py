@@ -315,7 +315,7 @@ SELECT json_build_object(
 """.strip()
         if self.cardinality == Cardinality.MANY:
             s = f"""
-SELECT json_agg({table_alias}_json) AS {table_alias}_json_agg
+SELECT COALESCE(json_agg({table_alias}_json), '[]'::json) AS {table_alias}_json_agg
 FROM (
     {s}
 ) as {table_alias}_json_sub
