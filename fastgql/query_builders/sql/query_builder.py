@@ -245,23 +245,12 @@ class QueryBuilder(BaseModel):
         s = f"'{name}', ({s})"
         return s
 
-    def build(
+    def build_fields_s(
         self,
-        parent_table_alias: str | None,
-        path: tuple[str, ...] | None,
-        order_fields_alphabetically: bool = True,
+        new_path: tuple[str, ...],
+        table_alias: str,
+        order_fields_alphabetically: bool,
     ) -> tuple[str, dict[str, T.Any]]:
-        if path:
-            new_path = (*path, self.table_name)
-        else:
-            new_path = (self.table_name,)
-        if self.table_alias:
-            table_alias = self.table_alias
-        else:
-            table_alias = "__".join(new_path).replace('"', "")
-        if not path:
-            if table_alias.lower() == self.table_name.lower().replace('"', ""):
-                table_alias = f"_{table_alias}"
         variables = self.variables.copy()
         subquery_strs = [
             self.build_subquery(
@@ -286,6 +275,9 @@ class QueryBuilder(BaseModel):
         if not all_fields_strs:
             raise Exception(f"Query Builder {self=} has no fields.")
         fields_s = ", ".join(all_fields_strs)
+        return fields_s, variables
+
+    def build_filter_parts_s(self) -> str:
         filter_parts: list[str] = []
         if self.where:
             filter_parts.append(f"WHERE {self.where}")
@@ -296,6 +288,40 @@ class QueryBuilder(BaseModel):
         if self.limit:
             filter_parts.append(self.limit)
         filter_parts_s = "\n".join(filter_parts)
+        return filter_parts_s
+
+    @staticmethod
+    def replace_current_and_parent(
+        s: str, table_alias: str, parent_table_alias: str | None
+    ) -> str:
+        s = s.replace("$current", table_alias)
+        if parent_table_alias:
+            s = s.replace("$parent", parent_table_alias)
+        return s
+
+    def build(
+        self,
+        parent_table_alias: str | None,
+        path: tuple[str, ...] | None,
+        order_fields_alphabetically: bool = True,
+    ) -> tuple[str, dict[str, T.Any]]:
+        if path:
+            new_path = (*path, self.table_name)
+        else:
+            new_path = (self.table_name,)
+        if self.table_alias:
+            table_alias = self.table_alias
+        else:
+            table_alias = "__".join(new_path).replace('"', "")
+        if not path:
+            if table_alias.lower() == self.table_name.lower().replace('"', ""):
+                table_alias = f"_{table_alias}"
+        fields_s, variables = self.build_fields_s(
+            new_path=new_path,
+            table_alias=table_alias,
+            order_fields_alphabetically=order_fields_alphabetically,
+        )
+        filter_parts_s = self.build_filter_parts_s()
         # now do from_
         if not self.from_:
             self.from_ = "*FROM*"
@@ -327,9 +353,9 @@ FROM (
         if self.full_query_str:
             s = self.full_query_str.replace(self.pattern_to_replace, s)
         # now replace the values
-        s = s.replace("$current", table_alias)
-        if parent_table_alias:
-            s = s.replace("$parent", parent_table_alias)
+        s = self.replace_current_and_parent(
+            s=s, table_alias=table_alias, parent_table_alias=parent_table_alias
+        )
         return s, variables
 
     def build_root(
