@@ -417,12 +417,18 @@ FROM (
 
         return sql, values
 
+    def existing_sel(self, name: str) -> SelectionField | SelectionSub | None:
+        for sel in self.selections:
+            if name == sel.name:
+                return sel
+        return None
+
     def sel(
         self, name: str, path: str = None, variables: dict[str, T.Any] | None = None
     ) -> "QueryBuilder":
-        self.add_variables(variables)
         if not path:
             path = f"$current.{name}"
+        self.add_variables(variables)
         self.selections.append(
             SelectionField(name=name, path=path, variables=variables)
         )
