@@ -41,7 +41,8 @@ class CTE(BaseModel):
 
 class QueryBuilder(BaseModel):
     table_name: str
-    # table_alias: str
+    table_alias: str | None = None
+
     cardinality: Cardinality
     selections: list[SelectionField | SelectionSub] = Field(default_factory=list)
     variables: dict[str, T.Any] = Field(default_factory=dict)
@@ -254,7 +255,10 @@ class QueryBuilder(BaseModel):
             new_path = (*path, self.table_name)
         else:
             new_path = (self.table_name,)
-        table_alias = "__".join(new_path).replace('"', "")
+        if self.table_alias:
+            table_alias = self.table_alias
+        else:
+            table_alias = "__".join(new_path).replace('"', "")
         if not path:
             if table_alias.lower() == self.table_name.lower().replace('"', ""):
                 table_alias = f"_{table_alias}"
