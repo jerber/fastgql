@@ -1,5 +1,6 @@
+# [Presentation](https://youtu.be/r--YN_6a76g?si=NJYNJALHdrlKRYoN&t=2152)
+![](docs/docs/images/fastgql%20shot.jpg)
 # [Documentation](https://jerber.github.io/fastgql)
-
 # FastGQL
 
 **FastGQL** is a python GraphQL library that uses Pydantic models to build GraphQL types. Think FastAPI for GraphQL.
