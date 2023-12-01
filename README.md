@@ -1,5 +1,5 @@
-# [Presentation](https://youtu.be/r--YN_6a76g?si=NJYNJALHdrlKRYoN&t=2152)
-[![](docs/docs/images/fastgql%20shot.jpg)](https://youtu.be/r--YN_6a76g?si=NJYNJALHdrlKRYoN&t=2152)
+# [Presentation](https://youtu.be/r--YN_6a76g?si=aWdBFagVPJfWDD6K&t=2155)
+[![](docs/docs/images/fastgql%20shot.jpg)](https://youtu.be/r--YN_6a76g?si=aWdBFagVPJfWDD6K&t=2155)
 # [Documentation](https://jerber.github.io/fastgql)
 # FastGQL
 
