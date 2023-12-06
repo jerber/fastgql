@@ -99,7 +99,7 @@ def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> No
 
 
 def root_type_s_from_annotation(
-    a: T.Any,
+    a: T.Any
 ) -> T.Type[BaseModel] | list[T.Type[BaseModel]]:
     if inspect.isclass(a):
         return a
@@ -123,6 +123,9 @@ def root_type_s_from_annotation(
 async def get_qb(info: Info) -> QueryBuilder:
     annotation = info.node.annotation
     root_type_s = root_type_s_from_annotation(annotation)
+    cardinality = (
+        Cardinality.MANY if "list[" in str(annotation).lower() else Cardinality.ONE
+    )
     if type(root_type_s) is list:
         existing_config = None
         for root_type in root_type_s:
@@ -135,9 +138,9 @@ async def get_qb(info: Info) -> QueryBuilder:
         if not existing_config:
             raise Exception("There is no return model with a qb_config.")
         return await existing_config.from_info(
-            info=info, node=info.node, cardinality=Cardinality.MANY
+            info=info, node=info.node, cardinality=cardinality
         )
     else:
         return await root_type_s.qb_config_sql.from_info(
-            info=info, node=info.node, cardinality=Cardinality.ONE
+            info=info, node=info.node, cardinality=cardinality
         )
