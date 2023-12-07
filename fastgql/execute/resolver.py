@@ -17,6 +17,7 @@ class Resolver:
     def __init__(
         self,
         *,
+        operation_name: str | None,
         use_camel_case: bool,
         info_cls: T.Type[InfoType],
         context_cls: T.Type[ContextType],
@@ -26,6 +27,7 @@ class Resolver:
         response: Response,
         bt: BackgroundTasks,
     ):
+        self.operation_name = operation_name
         self.use_camel_case = use_camel_case
         self.info_cls = info_cls
         self.is_not_nullable_map = is_not_nullable_map

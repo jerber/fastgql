@@ -560,6 +560,8 @@ class SchemaBuilder:
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
+            request.state.operation_name = request_data.operation_name
+
             if (
                 request_data.operation_name == "IntrospectionQuery"
                 or "IntrospectionQuery" in request_data.query

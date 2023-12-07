@@ -99,6 +99,7 @@ class Executor:
                 f"[ROOT NODES] parsing took {(time.time() - start_for_root_nodes) * 1_000} ms"
             )
         resolver = Resolver(
+            operation_name=operation_name,
             use_camel_case=self.use_camel_case,
             info_cls=info_cls,
             context_cls=context_cls,
