@@ -18,21 +18,15 @@ class Translator:
         self,
         document: graphql.DocumentNode,
         schema: graphql.GraphQLSchema,
-        use_camel_case: bool,
+        display_to_python_map: dict[str, str],
     ):
         self.document = document
         self.schema = schema
-        self.use_camel_case = use_camel_case
+        self.display_to_python_map = display_to_python_map
         self.query_definitions: list[graphql.OperationDefinitionNode] = []
         self.mutation_definitions: list[graphql.OperationDefinitionNode] = []
         self.subscription_definitions: list[graphql.OperationDefinitionNode] = []
         self.fragment_definitions: dict[str, graphql.FragmentDefinitionNode] = {}
-
-    def to_snake(self, s: str) -> str:
-        # TODO confirm that the node actually does require this
-        if self.use_camel_case:
-            return graphql.pyutils.camel_to_snake(s)
-        return s
 
     def parse_val(self, val: graphql.ValueNode) -> T.Any:
         if isinstance(val, graphql.VariableNode):
@@ -188,12 +182,18 @@ class Translator:
                 arguments.append(
                     Argument(
                         display_name=argument.name.value,
-                        name=self.to_snake(argument.name.value),
+                        name=self.display_to_python_map[argument.name.value],
                         value=self.parse_val(argument.value),
                     )
                 )
             alias = node.alias.value if node.alias else None
-            name = self.to_snake(node.name.value)
+            try:
+                name = self.display_to_python_map[node.name.value]
+            except KeyError as e:
+                if node.name.value == "__typename":
+                    name = node.name.value
+                else:
+                    raise e
 
             children = self.children_from_node(
                 gql_field=gql_field,

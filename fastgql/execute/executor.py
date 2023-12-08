@@ -23,13 +23,16 @@ class Executor:
 
     def __init__(
         self,
-        use_camel_case: bool,
+        python_to_display_map: dict[str, str],
         schema: graphql.GraphQLSchema,
         query_model: GQL | None,
         mutation_model: GQL | None,
         root_nodes_cache_size: int = 100,
     ):
-        self.use_camel_case = use_camel_case
+        self.python_to_display_map = python_to_display_map
+        self.display_to_python_map = {
+            v: k for k, v in self.python_to_display_map.items()
+        }
         self.schema = schema
         self.is_not_nullable_map = build_is_not_nullable_map(schema)
         self.operation_type_to_model: dict[M.OperationType, GQL | None] = {
@@ -86,7 +89,7 @@ class Executor:
             root_nodes = Translator(
                 document=document,
                 schema=self.schema,
-                use_camel_case=self.use_camel_case,
+                display_to_python_map=self.display_to_python_map,
             ).translate()
             if print_timings:
                 print(
@@ -100,7 +103,7 @@ class Executor:
             )
         resolver = Resolver(
             operation_name=operation_name,
-            use_camel_case=self.use_camel_case,
+            display_to_python_map=self.display_to_python_map,
             info_cls=info_cls,
             context_cls=context_cls,
             is_not_nullable_map=self.is_not_nullable_map,

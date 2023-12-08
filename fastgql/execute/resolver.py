@@ -18,7 +18,7 @@ class Resolver:
         self,
         *,
         operation_name: str | None,
-        use_camel_case: bool,
+        display_to_python_map: dict[str, str],
         info_cls: T.Type[InfoType],
         context_cls: T.Type[ContextType],
         is_not_nullable_map: dict[str, dict[str, bool]],
@@ -28,7 +28,7 @@ class Resolver:
         bt: BackgroundTasks,
     ):
         self.operation_name = operation_name
-        self.use_camel_case = use_camel_case
+        self.display_to_python_map = display_to_python_map
         self.info_cls = info_cls
         self.is_not_nullable_map = is_not_nullable_map
         self.variables = variables
@@ -68,9 +68,7 @@ class Resolver:
                 if val is not None:
                     val = TypeAdapter(param.annotation).validate_python(
                         val,
-                        context={
-                            "_use_camel_case": self.use_camel_case,
-                        },
+                        context={"_display_to_python_map": self.display_to_python_map},
                     )
                 new_kwargs[name] = val
             else:

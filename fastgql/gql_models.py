@@ -1,6 +1,5 @@
 import typing as T
 from pydantic import BaseModel, ValidationInfo, model_validator
-from pydantic.alias_generators import to_snake
 from fastgql.gql_ast.models import Node
 
 
@@ -37,16 +36,8 @@ class GQLInput(GQL):
     @classmethod
     def _to_snake_case(cls, data: T.Any, info: ValidationInfo) -> T.Any:
         if context := info.context:
-            if context.get("_use_camel_case", False):
-                fields = cls.model_fields
-                d: dict[str, T.Any] = {}
-                for k, v in data.items():
-                    d[k] = v
-                    if k in fields:
-                        d[k] = v
-                    else:
-                        d[to_snake(k)] = v
-                return d
+            if display_to_python_map := context.get("_display_to_python_map"):
+                return {display_to_python_map[k]: v for k, v in data.items()}
         return data
 
 

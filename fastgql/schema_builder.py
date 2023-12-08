@@ -121,6 +121,7 @@ class SchemaBuilder:
         use_camel_case: bool = True,
         info_cls: T.Type[InfoType] | None = None,
     ):
+        self.python_to_display_map: dict[str, str] = {}
         self.use_camel_case = use_camel_case
         self.info_cls = info_cls or Info
         self.context_cls = context_from_info(self.info_cls) or BaseContext
@@ -144,15 +145,11 @@ class SchemaBuilder:
         self.schema = graphql.GraphQLSchema(query=query, mutation=mutation)
 
         # now build QBs if QBs are found
-        qb_logic.build_from_schema(
-            schema=self.schema, use_camel_case=self.use_camel_case
-        )
-        sql_qb_logic.build_from_schema(
-            schema=self.schema, use_camel_case=self.use_camel_case
-        )
+        qb_logic.build_from_schema(schema=self.schema)
+        sql_qb_logic.build_from_schema(schema=self.schema)
 
         self.executor = Executor(
-            use_camel_case=self.use_camel_case,
+            python_to_display_map=self.python_to_display_map,
             schema=self.schema,
             query_model=query_model(),
             mutation_model=mutation_model() if mutation_model else None,
@@ -345,10 +342,13 @@ class SchemaBuilder:
                 default_value = param.default
             else:
                 default_value = graphql.Undefined
-            param_name = self.snake_to_camel(og_param_name)
-            args[param_name] = graphql.GraphQLArgument(
+            _arg = graphql.GraphQLArgument(
                 type_=param_type_, default_value=default_value
             )
+            _arg._og_name = og_param_name
+            param_name = self.snake_to_camel(og_param_name)
+            self.python_to_display_map[og_param_name] = param_name
+            args[param_name] = _arg
         return args
 
     @staticmethod
@@ -397,6 +397,8 @@ class SchemaBuilder:
                 resolve=func,
             )
             # field._method = func
+            field._og_name = attr
+            self.python_to_display_map[attr] = camel_attr
             gql_fields[camel_attr] = field
 
         return gql_fields
@@ -413,7 +415,9 @@ class SchemaBuilder:
                 "resolver"
             ):
                 gql_field.args = self.args_from_function(resolver)
+            gql_field._og_name = field_name
             camel_attr = self.snake_to_camel(field_name)
+            self.python_to_display_map[field_name] = camel_attr
             gql_fields[camel_attr] = gql_field
         return gql_fields
 

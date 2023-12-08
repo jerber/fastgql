@@ -3,7 +3,7 @@ import types
 import time
 import inspect
 import graphql
-from pydantic import alias_generators, BaseModel
+from pydantic import BaseModel
 from devtools import debug
 
 from fastgql.execute.utils import get_root_type
@@ -28,13 +28,7 @@ def get_qb_config_from_gql_field(
     return child_qb_config
 
 
-def to_camel(s: str, use_camel_case: bool) -> str:
-    if use_camel_case:
-        return alias_generators.to_camel(s)
-    return s
-
-
-def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> None:
+def build_from_schema(schema: graphql.GraphQLSchema) -> None:
     start = time.time()
     print("starting to build gql")
     gql_models = [
@@ -70,13 +64,12 @@ def build_from_schema(schema: graphql.GraphQLSchema, use_camel_case: bool) -> No
                     for meta in return_annotation.__metadata__:
                         if isinstance(meta, Link):
                             if not meta.return_cls_qb_config:
+                                fields_by_og_name = {
+                                    f._og_name: f for f in gql_model.fields.values()
+                                }
                                 meta.return_cls_qb_config = (
                                     get_qb_config_from_gql_field(
-                                        gql_model.fields[
-                                            to_camel(
-                                                name, use_camel_case=use_camel_case
-                                            )
-                                        ],
+                                        fields_by_og_name[name],
                                         path_to_return_cls=meta.path_to_return_cls,
                                     )
                                 )
