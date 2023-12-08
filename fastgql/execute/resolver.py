@@ -231,21 +231,20 @@ class Resolver:
         for name_to_return, name in name_to_return_to_display_name.items():
             val = final_d[name_to_return]
             if val is None:
-                if path:
-                    if self.is_not_nullable_map[model.gql_type_name()][name]:
-                        # get the actual node from the path
-                        null_node = node_from_path(
-                            node=node, path=[name_to_return], use_field_to_use=True
+                if self.is_not_nullable_map[model.gql_type_name()][name]:
+                    # get the actual node from the path
+                    null_node = node_from_path(
+                        node=node, path=[name_to_return], use_field_to_use=True
+                    )
+                    full_path_to_error = (*path, name_to_return)
+                    self.errors.append(
+                        GQLError(
+                            message=f"Cannot return null for non-nullable field {'.'.join(full_path_to_error)}",
+                            path=full_path_to_error,
+                            node=null_node,
                         )
-                        full_path_to_error = (*path, name_to_return)
-                        self.errors.append(
-                            GQLError(
-                                message=f"Cannot return null for non-nullable field {'.'.join(full_path_to_error)}",
-                                path=full_path_to_error,
-                                node=null_node,
-                            )
-                        )
-                        return None
+                    )
+                    return None
             sorted_d[name_to_return] = val
         del final_d
         return sorted_d
@@ -254,7 +253,7 @@ class Resolver:
         self,
         root_nodes: list[M.OperationNode],
         operation_type_to_model: dict[M.OperationType, GQL | None],
-    ) -> dict[str, T.Any]:
+    ) -> dict[str, T.Any] | None:
         proms = []
         for root_node in root_nodes:
             model = operation_type_to_model[root_node.type]
@@ -270,5 +269,7 @@ class Resolver:
         d_list = await asyncio.gather(*proms)
         final_d = {}
         for d in d_list:
+            if d is None:
+                return None
             final_d.update(d)
         return final_d
