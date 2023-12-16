@@ -43,6 +43,7 @@ mapping: dict[type, T.Any] = {
     uuid.UUID: UUIDScalar,
     datetime.date: DateScalar,
     datetime.time: TimeScalar,
+    pydantic_core.Url: graphql.GraphQLString
 }
 
 GT = T.TypeVar("GT", bound=graphql.GraphQLType)
@@ -205,7 +206,14 @@ class SchemaBuilder:
                 raise Exception(f"invalid sub {a=}")
         else:
             origin = T.get_origin(a)
-            args = T.get_args(a)
+            og_args = T.get_args(a)
+            # flatten args -- this is mostly for pydantic types
+            args = []
+            for og_arg in og_args:
+                while isinstance(og_arg, T._AnnotatedAlias):
+                    og_arg = T.get_args(og_arg)[0]
+                args.append(og_arg)
+
             if origin in {set, tuple}:
                 raise Exception("Cannot return a set or tuple. Must return a list.")
             if origin is list:
@@ -217,7 +225,7 @@ class SchemaBuilder:
             elif origin is types.UnionType or origin is T.Union:
                 non_none_args = [arg for arg in args if not issubclass(arg, type(None))]
                 has_none = len(non_none_args) != len(args)
-                if len(non_none_args) == 1:  # that means non was taken out?
+                if len(non_none_args) == 1:  # that means none was taken out?
                     type_ = self.gql_type_from_annotation(
                         non_none_args[0], nullable=has_none, is_input=is_input
                     )
