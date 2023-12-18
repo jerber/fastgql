@@ -17,7 +17,13 @@ from fastapi import APIRouter, Response, Request, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, PlainTextResponse, ORJSONResponse
 
 from fastgql.utils import get_graphiql_html
-from fastgql.scalars import DateTimeScalar, UUIDScalar, DateScalar, TimeScalar
+from fastgql.scalars import (
+    DateTimeScalar,
+    UUIDScalar,
+    DateScalar,
+    TimeScalar,
+    JSONScalar,
+)
 from fastgql.gql_models import GQL, GQLInput, GQLInterface
 from fastgql.info import Info
 from fastgql.depends import Depends
@@ -43,7 +49,8 @@ mapping: dict[type, T.Any] = {
     uuid.UUID: UUIDScalar,
     datetime.date: DateScalar,
     datetime.time: TimeScalar,
-    pydantic_core.Url: graphql.GraphQLString
+    pydantic_core.Url: graphql.GraphQLString,
+    dict: JSONScalar,
 }
 
 GT = T.TypeVar("GT", bound=graphql.GraphQLType)
