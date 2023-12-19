@@ -1,5 +1,7 @@
 import typing as T
 from dataclasses import dataclass
+from collections import OrderedDict
+import hashlib
 import time
 import types
 import datetime
@@ -172,6 +174,7 @@ class SchemaBuilder:
         mutation_models: list[T.Type[GQL]] | None = None,
         allow_graphiql: bool = True,
         info_cls: T.Type[InfoType] | None = None,
+        introspection_cache_max_len: int | None = None,
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,
@@ -179,7 +182,10 @@ class SchemaBuilder:
             mutation_models=mutation_models,
             info_cls=info_cls,
         )
-        return schema_builder._build_router(allow_graphiql=allow_graphiql)
+        return schema_builder._build_router(
+            allow_graphiql=allow_graphiql,
+            introspection_cache_max_len=introspection_cache_max_len,
+        )
 
     def snake_to_camel(self, s: str) -> str:
         if self.use_camel_case:
@@ -533,9 +539,11 @@ class SchemaBuilder:
             cache[model] = o
         return o
 
-    def _build_router(self, allow_graphiql: bool) -> APIRouter:
+    def _build_router(
+        self, allow_graphiql: bool, introspection_cache_max_len: int | None = None
+    ) -> APIRouter:
         router = APIRouter()
-
+        introspection_cache: OrderedDict[str, T.Any] = OrderedDict()
         if allow_graphiql:
 
             @router.get(
@@ -585,12 +593,30 @@ class SchemaBuilder:
                 request_data.operation_name == "IntrospectionQuery"
                 or "IntrospectionQuery" in request_data.query
             ):
-                res = await graphql.graphql(
-                    schema=self.schema,
-                    source=request_data.query,
-                    variable_values=request_data.variables,
-                    operation_name=request_data.operation_name,
-                )
+                if introspection_cache_max_len:
+                    key = hashlib.sha256(
+                        f"{request_data.operation_name}{request_data.query}{request_data.variables}".encode()
+                    ).hexdigest()
+                    res = introspection_cache.get(key)
+                    if res:
+                        introspection_cache.move_to_end(key)
+                    else:
+                        res = await graphql.graphql(
+                            schema=self.schema,
+                            source=request_data.query,
+                            variable_values=request_data.variables,
+                            operation_name=request_data.operation_name,
+                        )
+                        if len(introspection_cache) > introspection_cache_max_len:
+                            introspection_cache.popitem(last=False)
+                        introspection_cache[key] = res
+                else:
+                    res = await graphql.graphql(
+                        schema=self.schema,
+                        source=request_data.query,
+                        variable_values=request_data.variables,
+                        operation_name=request_data.operation_name,
+                    )
             else:
                 res = await self.executor.execute(
                     source=request_data.query,

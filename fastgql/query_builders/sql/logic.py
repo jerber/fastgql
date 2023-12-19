@@ -92,7 +92,7 @@ def build_from_schema(schema: graphql.GraphQLSchema) -> None:
 
 
 def root_type_s_from_annotation(
-    a: T.Any
+    a: T.Any,
 ) -> T.Type[BaseModel] | list[T.Type[BaseModel]]:
     if inspect.isclass(a):
         return a

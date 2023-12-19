@@ -36,7 +36,7 @@ class User(GQL):
         return f"lil {self.name}"
 
     def artists(
-        self
+        self,
     ) -> T.Annotated[
         list["Artist"],
         Link(
@@ -75,7 +75,7 @@ class Artist(GQL):
     slug: T.Annotated[str, Property(path="$current.slug")] = None
 
     def bookings(
-        self
+        self,
     ) -> T.Annotated[
         list["Booking"],
         Link(
@@ -101,7 +101,7 @@ class Artist(GQL):
         return 9
 
     def sellers(
-        self
+        self,
     ) -> T.Annotated[
         list[User],
         Link(
