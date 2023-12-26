@@ -165,6 +165,10 @@ class Resolver:
                 continue
             name_to_return = child.alias or child.display_name
             name_to_return_to_display_name[name_to_return] = child.display_name
+            if isinstance(child, M.Node):
+                if child.overwrite_return_value:
+                    final_d[name_to_return] = child.overwrite_return_value_to
+                    continue
             new_path = (*path, name_to_return)
             if child.name == "__typename":
                 final_d[name_to_return] = model.gql_type_name()
@@ -230,20 +234,23 @@ class Resolver:
         sorted_d = {}
         for name_to_return, name in name_to_return_to_display_name.items():
             val = final_d[name_to_return]
-            if val is None:
+            if (
+                val is None or isinstance(val, list) and None in val
+            ):  # TODO speed test, must go thru every list?
                 if self.is_not_nullable_map[model.gql_type_name()][name]:
                     # get the actual node from the path
                     null_node = node_from_path(
                         node=node, path=[name_to_return], use_field_to_use=True
                     )
-                    full_path_to_error = (*path, name_to_return)
-                    self.errors.append(
-                        GQLError(
-                            message=f"Cannot return null for non-nullable field {'.'.join(full_path_to_error)}",
-                            path=full_path_to_error,
-                            node=null_node,
+                    if not null_node.overwrite_return_value and path:
+                        full_path_to_error = (*path, name_to_return)
+                        self.errors.append(
+                            GQLError(
+                                message=f"Cannot return null for non-nullable field {'.'.join(full_path_to_error)}",
+                                path=full_path_to_error,
+                                node=null_node,
+                            )
                         )
-                    )
                     return None
             sorted_d[name_to_return] = val
         del final_d

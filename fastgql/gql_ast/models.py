@@ -23,6 +23,17 @@ class Node:
     original_node: graphql.Node
     children: list[T.Union["FieldNode", "InlineFragmentNode"]] | None
 
+    overwrite_return_value: bool
+    overwrite_return_value_to: T.Any | None
+
+    def set_return_value_to(self, val: T.Any) -> None:
+        self.overwrite_return_value = True
+        self.overwrite_return_value_to = val
+
+    def unset_return_value(self) -> None:
+        self.overwrite_return_value = False
+        self.overwrite_return_value_to = None
+
 
 @dataclass
 class FieldNode(Node):

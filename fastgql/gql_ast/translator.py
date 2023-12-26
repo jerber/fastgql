@@ -174,6 +174,8 @@ class Translator:
                 original_node=node,
                 type_condition=type_condition,
                 annotation=annotation,
+                overwrite_return_value=False,
+                overwrite_return_value_to=None,
             )
         elif isinstance(node, graphql.FieldNode):
             # build args
@@ -212,6 +214,8 @@ class Translator:
                     display_name=display_name,
                     arguments=arguments,
                     annotation=annotation,
+                    overwrite_return_value=False,
+                    overwrite_return_value_to=None,
                 )
             gql_field_type = gql_field.type
             if hasattr(gql_field_type, "_field_info"):
@@ -224,6 +228,8 @@ class Translator:
                     arguments=arguments,
                     annotation=annotation,
                     field=gql_field_type._field_info,
+                    overwrite_return_value=False,
+                    overwrite_return_value_to=None,
                 )
             elif hasattr(gql_field_type, "_method"):
                 return FieldNodeMethod(
@@ -235,6 +241,8 @@ class Translator:
                     arguments=arguments,
                     annotation=annotation,
                     method=gql_field_type._method,
+                    overwrite_return_value=False,
+                    overwrite_return_value_to=None,
                 )
             else:
                 root_type = self.get_root_type(gql_field)
@@ -252,6 +260,8 @@ class Translator:
                     arguments=arguments,
                     models=models,
                     annotation=annotation,
+                    overwrite_return_value=False,
+                    overwrite_return_value_to=None,
                 )
         else:
             raise Exception(f"Invalid node type: {type(node)=}, {node=}")
@@ -284,6 +294,8 @@ class Translator:
             type=OperationType(node.operation.value),
             children=children,
             original_node=node,
+            overwrite_return_value=False,
+            overwrite_return_value_to=None,
         )
 
         return op
