@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "fastgql"
 packages = [{ include = "fastgql" }]
-version = "0.10.1"
+version = "0.10.2"
 description = "The easiest, fastest python GraphQL framework."
 authors = ["Jeremy Berman <jerber@sas.upenn.edu>"]
 license = "MIT"

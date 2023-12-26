@@ -242,7 +242,7 @@ class Resolver:
                     null_node = node_from_path(
                         node=node, path=[name_to_return], use_field_to_use=True
                     )
-                    if not null_node.overwrite_return_value and path:
+                    if not null_node.overwrite_return_value:
                         full_path_to_error = (*path, name_to_return)
                         self.errors.append(
                             GQLError(
@@ -251,6 +251,8 @@ class Resolver:
                                 node=null_node,
                             )
                         )
+                    if not node.overwrite_return_value:
+                        node.overwrite_return_value = True
                     return None
             sorted_d[name_to_return] = val
         del final_d
