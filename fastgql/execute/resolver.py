@@ -242,7 +242,7 @@ class Resolver:
                     null_node = node_from_path(
                         node=node, path=[name_to_return], use_field_to_use=True
                     )
-                    if not null_node.overwrite_return_value:
+                    if not null_node.overwrite_return_value and path:
                         full_path_to_error = (*path, name_to_return)
                         self.errors.append(
                             GQLError(
