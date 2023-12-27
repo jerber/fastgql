@@ -19,14 +19,17 @@ class Argument:
     value: T.Any | None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Node:
-    id: uuid.UUID = field(hash=True, compare=True)
+    id: uuid.UUID
     original_node: graphql.Node
     children: list[T.Union["FieldNode", "InlineFragmentNode"]] | None
 
+    def __hash__(self):
+        return hash(self.id)
 
-@dataclass
+
+@dataclass(frozen=True)
 class FieldNode(Node):
     name: str
     alias: str | None
@@ -34,32 +37,50 @@ class FieldNode(Node):
     arguments: list[Argument]
     annotation: T.Any
 
+    def __hash__(self):
+        return hash(self.id)
 
-@dataclass
+
+@dataclass(frozen=True)
 class FieldNodeField(FieldNode):
     field: FieldInfo
 
+    def __hash__(self):
+        return hash(self.id)
 
-@dataclass
+
+@dataclass(frozen=True)
 class FieldNodeMethod(FieldNode):
     method: T.Callable
 
+    def __hash__(self):
+        return hash(self.id)
 
-@dataclass
+
+@dataclass(frozen=True)
 class FieldNodeModel(FieldNode):
     models: list[T.Type[BaseModel]]
 
+    def __hash__(self):
+        return hash(self.id)
 
-@dataclass
+
+@dataclass(frozen=True)
 class InlineFragmentNode(Node):
     type_condition: str
     annotation: T.Any
 
+    def __hash__(self):
+        return hash(self.id)
 
-@dataclass
+
+@dataclass(frozen=True)
 class OperationNode(Node):
     name: str | None
     type: OperationType
+
+    def __hash__(self):
+        return hash(self.id)
 
 
 __all__ = [

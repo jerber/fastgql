@@ -241,7 +241,10 @@ class Resolver:
                     null_node = node_from_path(
                         node=node, path=[name_to_return], use_field_to_use=True
                     )
-                    if null_node not in self.context.overwrite_return_value_map and path:
+                    if (
+                        null_node not in self.context.overwrite_return_value_map
+                        and path
+                    ):
                         full_path_to_error = (*path, name_to_return)
                         self.errors.append(
                             GQLError(
