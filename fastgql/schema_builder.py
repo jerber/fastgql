@@ -130,6 +130,9 @@ class SchemaBuilder:
         mutation_models: list[T.Type[GQL]] | None = None,
         use_camel_case: bool = True,
         info_cls: T.Type[InfoType] | None = None,
+        process_errors: T.Optional[
+            T.Callable[[list[graphql.GraphQLError]], list[graphql.GraphQLError]]
+        ] = None,
     ):
         self.python_to_display_map: dict[str, str] = {}
         self.use_camel_case = use_camel_case
@@ -163,6 +166,7 @@ class SchemaBuilder:
             schema=self.schema,
             query_model=query_model(),
             mutation_model=mutation_model() if mutation_model else None,
+            process_errors=process_errors,
         )
 
     @classmethod
@@ -175,12 +179,16 @@ class SchemaBuilder:
         allow_graphiql: bool = True,
         info_cls: T.Type[InfoType] | None = None,
         introspection_cache_max_len: int | None = None,
+        process_errors: T.Optional[
+            T.Callable[[list[graphql.GraphQLError]], list[graphql.GraphQLError]]
+        ] = None,
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,
             query_models=query_models,
             mutation_models=mutation_models,
             info_cls=info_cls,
+            process_errors=process_errors,
         )
         return schema_builder._build_router(
             allow_graphiql=allow_graphiql,

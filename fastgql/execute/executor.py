@@ -28,6 +28,9 @@ class Executor:
         query_model: GQL | None,
         mutation_model: GQL | None,
         root_nodes_cache_size: int = 100,
+        process_errors: T.Optional[
+            T.Callable[[list[graphql.GraphQLError]], list[graphql.GraphQLError]]
+        ] = None,
     ):
         self.python_to_display_map = python_to_display_map
         self.display_to_python_map = {
@@ -42,6 +45,7 @@ class Executor:
         self.root_nodes_cache: dict[str, list[M.OperationNode]] = CacheDict(
             cache_len=root_nodes_cache_size
         )
+        self.process_errors = process_errors
 
     async def execute(
         self,
@@ -116,8 +120,7 @@ class Executor:
             root_nodes=root_nodes, operation_type_to_model=self.operation_type_to_model
         )
         # now process errors
-        return Result(
-            data=d,
-            errors=gql_errors_to_graphql_errors(resolver.errors),
-            extensions=None,
-        )
+        errors = gql_errors_to_graphql_errors(resolver.errors)
+        if self.process_errors:
+            errors = self.process_errors(errors)
+        return Result(data=d, errors=errors, extensions=None)
