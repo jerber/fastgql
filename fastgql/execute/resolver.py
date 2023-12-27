@@ -165,10 +165,9 @@ class Resolver:
                 continue
             name_to_return = child.alias or child.display_name
             name_to_return_to_display_name[name_to_return] = child.display_name
-            if isinstance(child, M.Node):
-                if child.overwrite_return_value:
-                    final_d[name_to_return] = child.overwrite_return_value_to
-                    continue
+            if child in self.context.overwrite_return_value_map:
+                final_d[name_to_return] = self.context.overwrite_return_value_map[child]
+                continue
             new_path = (*path, name_to_return)
             if child.name == "__typename":
                 final_d[name_to_return] = model.gql_type_name()
@@ -242,7 +241,7 @@ class Resolver:
                     null_node = node_from_path(
                         node=node, path=[name_to_return], use_field_to_use=True
                     )
-                    if not null_node.overwrite_return_value and path:
+                    if null_node not in self.context.overwrite_return_value_map and path:
                         full_path_to_error = (*path, name_to_return)
                         self.errors.append(
                             GQLError(
@@ -251,8 +250,8 @@ class Resolver:
                                 node=null_node,
                             )
                         )
-                    if not node.overwrite_return_value:
-                        node.overwrite_return_value = True
+                    if node not in self.context.overwrite_return_value_map:
+                        self.context.overwrite_return_value_map[node] = None
                     return None
             sorted_d[name_to_return] = val
         del final_d

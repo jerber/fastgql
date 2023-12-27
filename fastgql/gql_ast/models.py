@@ -1,5 +1,6 @@
 import typing as T
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from enum import Enum
 import graphql
 from pydantic import BaseModel
@@ -20,19 +21,9 @@ class Argument:
 
 @dataclass
 class Node:
+    id: uuid.UUID = field(hash=True, compare=True)
     original_node: graphql.Node
     children: list[T.Union["FieldNode", "InlineFragmentNode"]] | None
-
-    overwrite_return_value: bool
-    overwrite_return_value_to: T.Any | None
-
-    def set_return_value_to(self, val: T.Any) -> None:
-        self.overwrite_return_value = True
-        self.overwrite_return_value_to = val
-
-    def unset_return_value(self) -> None:
-        self.overwrite_return_value = False
-        self.overwrite_return_value_to = None
 
 
 @dataclass
