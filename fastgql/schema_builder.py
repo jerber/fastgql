@@ -26,7 +26,7 @@ from fastgql.scalars import (
     TimeScalar,
     JSONScalar,
 )
-from fastgql.gql_models import GQL, GQLInput, GQLInterface
+from fastgql.gql_models import GQL, GQLInput, GQLInterface, GQLError
 from fastgql.info import Info
 from fastgql.depends import Depends
 from fastgql.execute.utils import combine_models
@@ -130,9 +130,7 @@ class SchemaBuilder:
         mutation_models: list[T.Type[GQL]] | None = None,
         use_camel_case: bool = True,
         info_cls: T.Type[InfoType] | None = None,
-        process_errors: T.Optional[
-            T.Callable[[list[graphql.GraphQLError]], list[graphql.GraphQLError]]
-        ] = None,
+        process_errors: T.Optional[T.Callable[[list[GQLError]], list[GQLError]]] = None,
     ):
         self.python_to_display_map: dict[str, str] = {}
         self.use_camel_case = use_camel_case
@@ -179,9 +177,7 @@ class SchemaBuilder:
         allow_graphiql: bool = True,
         info_cls: T.Type[InfoType] | None = None,
         introspection_cache_max_len: int | None = None,
-        process_errors: T.Optional[
-            T.Callable[[list[graphql.GraphQLError]], list[graphql.GraphQLError]]
-        ] = None,
+        process_errors: T.Optional[T.Callable[[list[GQLError]], list[GQLError]]] = None,
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,

@@ -6,7 +6,7 @@ from fastapi import Request, Response, BackgroundTasks
 
 from fastgql.gql_ast import models as M
 from fastgql.gql_ast.translator import Translator
-from fastgql.gql_models import GQL
+from fastgql.gql_models import GQL, GQLError
 from fastgql.execute.utils import (
     build_is_not_nullable_map,
     CacheDict,
@@ -28,9 +28,7 @@ class Executor:
         query_model: GQL | None,
         mutation_model: GQL | None,
         root_nodes_cache_size: int = 100,
-        process_errors: T.Optional[
-            T.Callable[[list[graphql.GraphQLError]], list[graphql.GraphQLError]]
-        ] = None,
+        process_errors: T.Optional[T.Callable[[list[GQLError]], list[GQLError]]] = None,
     ):
         self.python_to_display_map = python_to_display_map
         self.display_to_python_map = {
@@ -120,7 +118,10 @@ class Executor:
             root_nodes=root_nodes, operation_type_to_model=self.operation_type_to_model
         )
         # now process errors
-        errors = gql_errors_to_graphql_errors(resolver.errors)
         if self.process_errors:
-            errors = self.process_errors(errors)
-        return Result(data=d, errors=errors, extensions=None)
+            errors = self.process_errors(resolver.errors)
+        else:
+            errors = resolver.errors
+        return Result(
+            data=d, errors=gql_errors_to_graphql_errors(errors), extensions=None
+        )
