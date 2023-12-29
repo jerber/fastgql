@@ -4,7 +4,7 @@ import asyncio
 import inspect
 
 from fastapi import Request, Response, BackgroundTasks
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from fastgql.gql_ast import models as M
 from fastgql.gql_models import GQL, GQLError
@@ -66,10 +66,25 @@ class Resolver:
             if name in kwargs:
                 val = kwargs[name]
                 if val is not None:
-                    val = TypeAdapter(param.annotation).validate_python(
-                        val,
-                        context={"_display_to_python_map": self.display_to_python_map},
-                    )
+                    try:
+                        val = TypeAdapter(param.annotation).validate_python(
+                            val,
+                            context={
+                                "_display_to_python_map": self.display_to_python_map
+                            },
+                        )
+                    except ValidationError as e:
+                        if e.errors()[0]["type"] == "list_type" and not isinstance(
+                            val, list
+                        ):
+                            val = TypeAdapter(param.annotation).validate_python(
+                                [val],
+                                context={
+                                    "_display_to_python_map": self.display_to_python_map
+                                },
+                            )
+                        else:
+                            raise e
                 new_kwargs[name] = val
             else:
                 if isinstance(param.default, Depends):
