@@ -10,29 +10,6 @@ from fastgql.utils import node_from_path
 from .query_builder import QueryBuilder, Cardinality
 
 
-def combine_qbs(
-    *qbs: QueryBuilder,
-    nodes_to_include: list[
-        M.FieldNode
-    ],  # TODO so far, not needed but may for better inheritence
-) -> QueryBuilder:
-    """takes in a dict of db typename and qb"""
-    new_qb = QueryBuilder()
-    # add dangling to each qb
-    for node in nodes_to_include:
-        for qb in qbs:
-            if node.name == "__typename":
-                qb.fields.add(f"{node.alias or node.name} := .__type__.name")
-            # TODO other things here
-    for qb in qbs:
-        if not qb.typename:
-            raise Exception("QB must have a typename if it is to be combined.")
-        new_qb.children[qb.typename] = ChildEdge(
-            db_expression=f"[is {qb.typename}]", qb=qb
-        )
-    return new_qb
-
-
 @dataclass
 class Property:
     path: str | None
@@ -50,6 +27,50 @@ class Link:
     ) = None
     path_to_return_cls: tuple[str, ...] | None = None
     update_qbs: T.Callable[[..., T.Any], None | T.Awaitable] = None
+
+    # these are for unions
+    from_mapping: dict[str, str] | None = None
+    update_qbs_mapping: dict[str, T.Callable[[..., T.Any], None | T.Awaitable]] = None
+
+
+async def execute_update_qbs(
+    update_qbs: T.Callable[[..., T.Any], None | T.Awaitable],
+    original_child: M.FieldNode,
+    qb: QueryBuilder,
+    child_qb: QueryBuilder,
+    node: M.FieldNode,
+    child: M.FieldNode | M.InlineFragmentNode,
+    info: Info,
+) -> None:
+    new_kwargs: dict[str, T.Any] = {}
+    sig = inspect.signature(update_qbs)
+    args_by_name: dict[str, M.Argument] = {a.name: a for a in original_child.arguments}
+    for name, param in sig.parameters.items():
+        if name in args_by_name:
+            arg = args_by_name[name]
+            val = arg.value
+            if val is not None:
+                # TODO get use camel case...
+                val = TypeAdapter(param.annotation).validate_python(
+                    val, context={"_use_camel_case": True}
+                )
+            new_kwargs[name] = val
+        elif name == "qb":
+            new_kwargs[name] = qb
+        elif name == "child_qb":
+            new_kwargs[name] = child_qb
+        elif name == "node":
+            new_kwargs[name] = node
+        elif name == "child_node":
+            new_kwargs[name] = child
+        elif name == "info":
+            new_kwargs[name] = info
+        elif name == "original_child":
+            new_kwargs[name] = original_child
+
+    _ = update_qbs(**new_kwargs)
+    if inspect.isawaitable(_):
+        await _
 
 
 @dataclass
@@ -106,84 +127,97 @@ class QueryBuilderConfig:
                             await _
                 if child.name in self.links:
                     method_config = self.links[child.name]
+                    if method_config.from_mapping and method_config.from_:
+                        raise Exception(
+                            "Cannot provide both from_mapping and from_."
+                        )
                     original_child = child
                     if method_config.path_to_return_cls:
                         child = node_from_path(
                             node=child, path=[*method_config.path_to_return_cls]
                         )
                     if config := method_config.return_cls_qb_config:
-                        # TODO DO NOT WORRY ABOUT THIS FOR NOW
                         if isinstance(config, dict):
+                            # first, get the dangling children, so we can add them to the fragments
                             dangling_children: list[M.FieldNode] = []
-                            frag_qbs: list[QueryBuilder] = []
-                            for child_child in child.children:
-                                if isinstance(child_child, M.InlineFragmentNode):
-                                    child_child_qb = await config[
-                                        child_child.type_condition
-                                    ].from_info(
-                                        info=info,
-                                        node=child_child,
-                                        cardinality=Cardinality.ONE,
-                                    )  # TODO LATER
-                                    child_child_qb.typename = child_child.type_condition
-                                    frag_qbs.append(child_child_qb)
-                                elif isinstance(child_child, M.FieldNode):
-                                    dangling_children.append(child_child)
+                            type_condition_children: list[M.InlineFragmentNode] = []
+                            for c in child.children:
+                                if isinstance(c, M.FieldNode):
+                                    dangling_children.append(c)
+                                elif isinstance(c, M.InlineFragmentNode):
+                                    type_condition_children.append(c)
                                 else:
                                     raise Exception(
-                                        f"Invalid node for config as dict: {child=}"
+                                        f"Invalid node for config as dict: {c=}, {child=}"
                                     )
-                            # now combine the dangling with the frags
-                            child_qb = combine_qbs(
-                                *frag_qbs, nodes_to_include=dangling_children
-                            )
-                            # child_qb.fields.add("typename := .__type__.name") # TODO
+                            for child_child in type_condition_children:
+                                # now add dangling children to these children
+                                child_child.children.extend(dangling_children)
+                                child_child_qb = await config[
+                                    child_child.type_condition
+                                ].from_info(
+                                    info=info,
+                                    node=child_child,
+                                    cardinality=method_config.cardinality,
+                                )
+                                from_where = None
+                                if method_config.from_mapping:
+                                    from_where = method_config.from_mapping.get(
+                                        child_child.type_condition
+                                    )
+                                if not from_where:
+                                    from_where = method_config.from_
+                                if from_where:
+                                    qb.sel_sub(
+                                        name=f"{child.alias or child.name}__{child_child.type_condition}",
+                                        qb=child_child_qb.set_from(from_where),
+                                    )
+                                if update_qbs := method_config.update_qbs:
+                                    await execute_update_qbs(
+                                        update_qbs=update_qbs,
+                                        original_child=original_child,
+                                        qb=qb,
+                                        child_qb=child_child_qb,
+                                        node=node, # maybe this should be child
+                                        child=child_child,
+                                        info=info,
+                                    )
+                                if method_config.update_qbs_mapping:
+                                    if (
+                                        update_qbs_condition
+                                        := method_config.update_qbs_mapping.get(
+                                            child_child.type_condition
+                                        )
+                                    ):
+                                        await execute_update_qbs(
+                                            update_qbs=update_qbs_condition,
+                                            original_child=original_child,
+                                            qb=qb,
+                                            child_qb=child_child_qb,
+                                            node=node, # maybe this should be child
+                                            child=child_child,
+                                            info=info,
+                                        )
+
                         else:
                             child_qb = await config.from_info(
                                 info=info,
                                 node=child,
                                 cardinality=method_config.cardinality,
-                            )  # TODO LATER
-
-                        if from_where := method_config.from_:
-                            child_qb.from_ = from_where
-                            qb.sel_sub(
-                                name=child.alias or child.name,
-                                qb=child_qb,
                             )
-
-                        if update_qbs := method_config.update_qbs:
-                            new_kwargs: dict[str, T.Any] = {}
-                            sig = inspect.signature(update_qbs)
-                            args_by_name: dict[str, M.Argument] = {
-                                a.name: a for a in original_child.arguments
-                            }
-                            for name, param in sig.parameters.items():
-                                if name in args_by_name:
-                                    arg = args_by_name[name]
-                                    val = arg.value
-                                    if val is not None:
-                                        # TODO get use camel case...
-                                        val = TypeAdapter(
-                                            param.annotation
-                                        ).validate_python(
-                                            val, context={"_use_camel_case": True}
-                                        )
-                                    new_kwargs[name] = val
-                                elif name == "qb":
-                                    new_kwargs[name] = qb
-                                elif name == "child_qb":
-                                    new_kwargs[name] = child_qb
-                                elif name == "node":
-                                    new_kwargs[name] = node
-                                elif name == "child_node":
-                                    new_kwargs[name] = child
-                                elif name == "info":
-                                    new_kwargs[name] = info
-                                elif name == "original_child":
-                                    new_kwargs[name] = original_child
-
-                            _ = update_qbs(**new_kwargs)
-                            if inspect.isawaitable(_):
-                                await _
+                            if from_where := method_config.from_:
+                                qb.sel_sub(
+                                    name=child.alias or child.name,
+                                    qb=child_qb.set_from(from_where),
+                                )
+                            if update_qbs := method_config.update_qbs:
+                                await execute_update_qbs(
+                                    update_qbs=update_qbs,
+                                    original_child=original_child,
+                                    qb=qb,
+                                    child_qb=child_qb,
+                                    node=node,
+                                    child=child,
+                                    info=info,
+                                )
         return qb
