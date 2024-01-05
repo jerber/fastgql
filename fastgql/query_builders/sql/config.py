@@ -128,9 +128,7 @@ class QueryBuilderConfig:
                 if child.name in self.links:
                     method_config = self.links[child.name]
                     if method_config.from_mapping and method_config.from_:
-                        raise Exception(
-                            "Cannot provide both from_mapping and from_."
-                        )
+                        raise Exception("Cannot provide both from_mapping and from_.")
                     original_child = child
                     if method_config.path_to_return_cls:
                         child = node_from_path(
@@ -178,7 +176,7 @@ class QueryBuilderConfig:
                                         original_child=original_child,
                                         qb=qb,
                                         child_qb=child_child_qb,
-                                        node=node, # maybe this should be child
+                                        node=node,  # maybe this should be child
                                         child=child_child,
                                         info=info,
                                     )
@@ -194,7 +192,7 @@ class QueryBuilderConfig:
                                             original_child=original_child,
                                             qb=qb,
                                             child_qb=child_child_qb,
-                                            node=node, # maybe this should be child
+                                            node=node,  # maybe this should be child
                                             child=child_child,
                                             info=info,
                                         )
