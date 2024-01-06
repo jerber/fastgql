@@ -17,6 +17,8 @@ from fastgql.execute.utils import (
 )
 from fastgql.execute.resolver import Resolver
 
+DISPLAY_TO_PYTHON_MAP: dict[str, str] = {}
+
 
 class Executor:
     """this class has the un-changing config"""
@@ -44,6 +46,8 @@ class Executor:
             cache_len=root_nodes_cache_size
         )
         self.process_errors = process_errors
+
+        DISPLAY_TO_PYTHON_MAP.update(self.display_to_python_map)
 
     async def execute(
         self,

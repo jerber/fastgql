@@ -9,6 +9,8 @@ from fastgql.execute.utils import parse_value
 from fastgql.utils import node_from_path
 from .query_builder import QueryBuilder, Cardinality
 
+from fastgql.execute.executor import DISPLAY_TO_PYTHON_MAP
+
 
 @dataclass
 class Property:
@@ -50,9 +52,8 @@ async def execute_update_qbs(
             arg = args_by_name[name]
             val = arg.value
             if val is not None:
-                # TODO get use camel case...
                 val = TypeAdapter(param.annotation).validate_python(
-                    val, context={"_use_camel_case": True}
+                    val, context={"_display_to_python_map": DISPLAY_TO_PYTHON_MAP}
                 )
             new_kwargs[name] = val
         elif name == "qb":
