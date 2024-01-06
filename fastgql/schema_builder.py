@@ -129,11 +129,13 @@ class SchemaBuilder:
         query_models: list[T.Type[GQL]],
         mutation_models: list[T.Type[GQL]] | None = None,
         use_camel_case: bool = True,
+        use_aliases: bool = True,
         info_cls: T.Type[InfoType] | None = None,
         process_errors: T.Optional[T.Callable[[list[GQLError]], list[GQLError]]] = None,
     ):
         self.python_to_display_map: dict[str, str] = {}
         self.use_camel_case = use_camel_case
+        self.use_aliases = use_aliases
         self.info_cls = info_cls or Info
         self.context_cls = context_from_info(self.info_cls) or BaseContext
 
@@ -172,6 +174,7 @@ class SchemaBuilder:
         cls,
         *,
         use_camel_case: bool = True,
+        use_aliases: bool = True,
         query_models: list[T.Type[GQL]],
         mutation_models: list[T.Type[GQL]] | None = None,
         allow_graphiql: bool = True,
@@ -181,6 +184,7 @@ class SchemaBuilder:
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,
+            use_aliases=use_aliases,
             query_models=query_models,
             mutation_models=mutation_models,
             info_cls=info_cls,
@@ -433,6 +437,8 @@ class SchemaBuilder:
     ) -> dict[str, graphql.GraphQLField | graphql.GraphQLInputField]:
         gql_fields: dict[str, graphql.GraphQLField | graphql.GraphQLInputField] = {}
         for field_name, field_info in model.model_fields.items():
+            if self.use_aliases:
+                field_name = field_info.alias or field_name
             gql_field = self.field_info_to_gql_field(
                 field_info=field_info, is_input=is_input
             )
