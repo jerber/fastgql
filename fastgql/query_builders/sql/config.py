@@ -151,7 +151,7 @@ class QueryBuilderConfig:
                             for child_child in type_condition_children:
                                 # now add dangling children to these children
                                 child_child.children.extend(dangling_children)
-                                child_child_qb = await config[
+                                child_child_qb: QueryBuilder = await config[
                                     child_child.type_condition
                                 ].from_info(
                                     info=info,

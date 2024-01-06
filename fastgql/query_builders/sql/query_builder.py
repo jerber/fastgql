@@ -7,6 +7,20 @@ from pydantic import BaseModel, Field
 import sqlparse
 
 
+def split_text_around_where(text: str) -> tuple[str, str | None]:
+    # Regex pattern to split the string around 'where' (case-insensitive)
+    pattern = r"(?i)\bwhere\b"
+
+    # Splitting the string
+    parts = re.split(pattern, text, maxsplit=1)
+
+    # Stripping whitespace from both parts
+    before_where = parts[0].strip()
+    after_where = parts[1].strip() if len(parts) > 1 else None
+
+    return before_where, after_where
+
+
 class FilterConnector(str, Enum):
     AND = "AND"
     OR = "OR"
@@ -139,7 +153,10 @@ class QueryBuilder(BaseModel):
         if self.from_ and not replace_from:
             raise QueryBuilderError("from_ already exists.")
         self.add_variables(variables=variables, replace=replace_variables)
-        self.from_ = from_
+        pre_where, post_where = split_text_around_where(from_)
+        self.from_ = pre_where
+        if post_where:
+            self.and_where(post_where)
         return self
 
     def and_where(
@@ -153,19 +170,6 @@ class QueryBuilder(BaseModel):
             self.where = where
         else:
             self.where = f"{self.where} AND {where}"
-        return self
-
-    def or_where(
-        self,
-        where: str,
-        variables: dict[str, T.Any] | None = None,
-        replace_variables: bool = False,
-    ) -> "QueryBuilder":
-        self.add_variables(variables=variables, replace=replace_variables)
-        if not self.where:
-            self.where = where
-        else:
-            self.where = f"{self.where} OR {where}"
         return self
 
     def set_where(
