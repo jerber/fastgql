@@ -5,7 +5,6 @@ from pydantic import TypeAdapter
 
 from fastgql.info import Info
 from fastgql.gql_ast import models as M
-from fastgql.execute.utils import parse_value
 from fastgql.utils import node_from_path
 from .query_builder import QueryBuilder, Cardinality
 
@@ -15,7 +14,7 @@ from fastgql.execute.executor import DISPLAY_TO_PYTHON_MAP
 @dataclass
 class Property:
     path: str | None
-    update_qb: T.Callable[[QueryBuilder], T.Awaitable[None] | None] = None
+    update_qb: T.Callable[[..., T.Any], None | T.Awaitable] = None
 
 
 @dataclass
@@ -33,6 +32,39 @@ class Link:
     # these are for unions
     from_mapping: dict[str, str] | None = None
     update_qbs_mapping: dict[str, T.Callable[[..., T.Any], None | T.Awaitable]] = None
+
+
+async def execute_update_qb(
+    update_qb: T.Callable[[..., T.Any], None | T.Awaitable],
+    qb: QueryBuilder,
+    node: M.FieldNode,
+    child: M.FieldNode,
+    info: Info,
+) -> None:
+    new_kwargs: dict[str, T.Any] = {}
+    sig = inspect.signature(update_qb)
+    args_by_name: dict[str, M.Argument] = {a.name: a for a in child.arguments}
+    for name, param in sig.parameters.items():
+        if name in args_by_name:
+            arg = args_by_name[name]
+            val = arg.value
+            if val is not None:
+                val = TypeAdapter(param.annotation).validate_python(
+                    val, context={"_display_to_python_map": DISPLAY_TO_PYTHON_MAP}
+                )
+            new_kwargs[name] = val
+        elif name == "qb":
+            new_kwargs[name] = qb
+        elif name == "node":
+            new_kwargs[name] = node
+        elif name == "child_node":
+            new_kwargs[name] = child
+        elif name == "info":
+            new_kwargs[name] = info
+
+    _ = update_qb(**new_kwargs)
+    if inspect.isawaitable(_):
+        await _
 
 
 async def execute_update_qbs(
@@ -90,7 +122,6 @@ class QueryBuilderConfig:
         node: M.FieldNode | M.InlineFragmentNode,
         cardinality: Cardinality,
     ) -> QueryBuilder | None:
-        # TODO
         if not node:
             return None
         qb = QueryBuilder(table_name=self.table_name, cardinality=cardinality)
@@ -106,26 +137,13 @@ class QueryBuilderConfig:
                     if path_to_value := property_config.path:
                         qb.sel(name=child.name, path=path_to_value)
                     if update_qb := property_config.update_qb:
-                        kwargs = {
-                            "qb": qb,
-                            "node": node,
-                            "child_node": child,
-                            "info": info,
-                            **{
-                                a.name: parse_value(
-                                    variables=info.context.variables, v=a.value
-                                )
-                                for a in child.arguments
-                            },
-                        }
-                        kwargs = {
-                            k: v
-                            for k, v in kwargs.items()
-                            if k in inspect.signature(update_qb).parameters
-                        }
-                        _ = update_qb(**kwargs)
-                        if inspect.isawaitable(_):
-                            await _
+                        await execute_update_qb(
+                            update_qb=update_qb,
+                            qb=qb,
+                            node=node,
+                            child=child,
+                            info=info,
+                        )
                 if child.name in self.links:
                     method_config = self.links[child.name]
                     if method_config.from_mapping and method_config.from_:
