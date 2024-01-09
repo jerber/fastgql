@@ -157,17 +157,27 @@ class QueryBuilderConfig:
                         if isinstance(config, dict):
                             # first, get the dangling children, so we can add them to the fragments
                             dangling_children: list[M.FieldNode] = []
-                            type_condition_children: list[M.InlineFragmentNode] = []
+                            _type_condition_children: list[M.InlineFragmentNode] = []
                             for c in child.children:
                                 if isinstance(c, M.FieldNode):
                                     dangling_children.append(c)
                                 elif isinstance(c, M.InlineFragmentNode):
-                                    type_condition_children.append(c)
+                                    _type_condition_children.append(c)
                                 else:
                                     raise Exception(
                                         f"Invalid node for config as dict: {c=}, {child=}"
                                     )
-                            for child_child in type_condition_children:
+
+                            # must combine type condition children for repeats
+                            node_by_tc: dict[str, M.InlineFragmentNode] = {}
+                            for tc_node in _type_condition_children:
+                                type_condition = tc_node.type_condition
+                                if seen_node := node_by_tc.get(type_condition):
+                                    seen_node.children.extend(tc_node.children)
+                                else:
+                                    node_by_tc[type_condition] = tc_node
+
+                            for child_child in node_by_tc.values():
                                 # now add dangling children to these children
                                 child_child.children.extend(dangling_children)
                                 child_child_qb: QueryBuilder = await config[
