@@ -7,6 +7,12 @@ from pydantic import BaseModel, Field
 import sqlparse
 
 
+class PostgresDriver(str, Enum):
+    SQLALCHEMY = "SQLALCHEMY"
+    PSYCOPG3 = "PSYCOPG3"
+    ASYNCPG = "ASYNCPG"
+
+
 def split_text_around_where(text: str) -> tuple[str, str | None]:
     # Regex pattern to split the string around 'where' (case-insensitive)
     pattern = r"(?i)\bwhere\b"
@@ -277,7 +283,7 @@ class QueryBuilder(BaseModel):
         if order_fields_alphabetically:
             all_fields_strs.sort()
         if not all_fields_strs:
-            raise Exception(f"Query Builder {self=} has no fields.")
+            raise QueryBuilderError(f"Query Builder {self=} has no fields.")
         fields_s = ", ".join(all_fields_strs)
         return fields_s, variables
 
@@ -368,6 +374,7 @@ FROM (
         order_fields_alphabetically: bool = False,
         parent_table_alias: str = None,
         path: tuple[str, ...] = None,
+        driver: PostgresDriver = PostgresDriver.SQLALCHEMY,
     ) -> tuple[str, dict[T.Any]]:
         rr = self.build(
             order_fields_alphabetically=order_fields_alphabetically,
@@ -376,7 +383,14 @@ FROM (
         )
         s, v = rr
         if v:
-            s, variables = self.prepare_query_psycopg(sql=s, params=v)
+            if driver == PostgresDriver.SQLALCHEMY:
+                s, variables = self.prepare_query_sqlalchemy(sql=s, params=v)
+            elif driver == PostgresDriver.PSYCOPG3:
+                s, variables = self.prepare_query_psycopg(sql=s, params=v)
+            elif driver == PostgresDriver.ASYNCPG:
+                s, variables = self.prepare_query_asyncpg(sql=s, params=v)
+            else:
+                raise QueryBuilderError(f"Unknown driver: {driver=}.")
         else:
             variables = {}
         if format_sql:
@@ -460,6 +474,32 @@ FROM (
 
         return sql, query_params
 
+    @staticmethod
+    def prepare_query_sqlalchemy(
+        sql: str, params: dict[str, T.Any]
+    ) -> tuple[str, dict[str, T.Any]]:
+        """
+        Converts a SQL string with named parameters (e.g., $variable) to a format
+        compatible with sqlalchemy (using :variable), and returns the new SQL string
+        and the dictionary of parameters.
+
+        :param sql: Original SQL string with named parameters
+        :param params: Dictionary of parameters
+        :return: Tuple of (new_sql_string, dict_of_parameters)
+        """
+
+        # Extract the named parameters from the SQL string
+        named_params = re.findall(r"\$(\w+)", sql)
+
+        # Replace named parameters with %(param)s
+        for param in named_params:
+            sql = sql.replace(f"${param}", f":{param}")
+
+        # Create the dictionary of parameters to be used in the query
+        query_params = {param: params[param] for param in named_params}
+
+        return sql, query_params
+
     def existing_sel(self, name: str) -> SelectionField | SelectionSub | None:
         for sel in self.selections:
             if name == sel.name:
@@ -487,6 +527,6 @@ FROM (
         elif isinstance(sel, SelectionSub):
             return self.sel_sub(name=sel.name, qb=sel.qb)
         else:
-            raise Exception(
+            raise QueryBuilderError(
                 f"Can only add selections for SelectionField or SelectionSub, not {type(sel)}"
             )
