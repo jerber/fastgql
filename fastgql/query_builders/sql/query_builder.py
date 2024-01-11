@@ -463,16 +463,14 @@ FROM (
         """
 
         # Extract the named parameters from the SQL string
-        named_params = re.findall(r"\$(\w+)", sql)
+        named_params = re.findall(r"[\$:]([\w]+)", sql)
 
         # Replace named parameters with %(param)s
         for param in named_params:
             sql = sql.replace(f"${param}", f"%({param})s")
-
-        # Create the dictionary of parameters to be used in the query
-        query_params = {param: params[param] for param in named_params}
-
-        return sql, query_params
+            # TODO be careful with this lower one
+            sql = sql.replace(f":{param}", f"%({param})s")
+        return sql, {**params}
 
     @staticmethod
     def prepare_query_sqlalchemy(
@@ -496,9 +494,7 @@ FROM (
             sql = sql.replace(f"${param}", f":{param}")
 
         # Create the dictionary of parameters to be used in the query
-        query_params = {param: params[param] for param in named_params}
-
-        return sql, query_params
+        return sql, {**params}
 
     def existing_sel(self, name: str) -> SelectionField | SelectionSub | None:
         for sel in self.selections:
