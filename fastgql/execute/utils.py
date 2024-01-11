@@ -1,4 +1,5 @@
 import typing as T
+from fastapi import Request, Response
 from collections import OrderedDict
 from dataclasses import dataclass
 
@@ -12,10 +13,29 @@ InfoType = T.TypeVar("InfoType", bound=Info)
 
 
 @dataclass
+class GraphQLRequestData:
+    # query is optional here as it can be added by an extensions
+    # (for example an extension for persisted queries)
+    query: str | None
+    variables: dict[str, T.Any] | None
+    operation_name: str | None
+
+
+@dataclass
 class Result:
     data: T.Any | None
     errors: list[graphql.GraphQLError] | None
     extensions: list[T.Any] | None
+
+
+RESULT_WRAPPERS = T.Optional[
+    T.List[
+        T.Callable[
+            [GraphQLRequestData, Result, dict[str, T.Any], Request, Response],
+            T.Coroutine[T.Any, T.Any, Result],
+        ]
+    ]
+]
 
 
 def gql_errors_to_graphql_errors(
@@ -144,4 +164,6 @@ __all__ = [
     "gql_errors_to_graphql_errors",
     "CacheDict",
     "Info",
+    "GraphQLRequestData",
+    "RESULT_WRAPPERS",
 ]

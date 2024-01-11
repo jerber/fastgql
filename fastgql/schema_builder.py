@@ -1,5 +1,4 @@
 import typing as T
-from dataclasses import dataclass
 from collections import OrderedDict
 import hashlib
 import time
@@ -29,7 +28,7 @@ from fastgql.scalars import (
 from fastgql.gql_models import GQL, GQLInput, GQLInterface, GQLError
 from fastgql.info import Info
 from fastgql.depends import Depends
-from fastgql.execute.utils import combine_models
+from fastgql.execute.utils import combine_models, GraphQLRequestData, RESULT_WRAPPERS
 from fastgql.execute.executor import Executor, InfoType, ContextType
 from fastgql.query_builders.edgedb import logic as qb_logic
 from fastgql.query_builders.sql import logic as sql_qb_logic
@@ -60,15 +59,6 @@ GT = T.TypeVar("GT", bound=graphql.GraphQLType)
 enum_cache: dict[T.Type[enum.Enum], graphql.GraphQLEnumType] = {}
 
 union_cache: dict[str, graphql.GraphQLUnionType] = {}
-
-
-@dataclass
-class GraphQLRequestData:
-    # query is optional here as it can be added by an extensions
-    # (for example an extension for persisted queries)
-    query: str | None
-    variables: dict[str, T.Any] | None
-    operation_name: str | None
 
 
 class MissingQueryError(Exception):
@@ -132,6 +122,7 @@ class SchemaBuilder:
         use_aliases: bool = True,
         info_cls: T.Type[InfoType] | None = None,
         process_errors: T.Optional[T.Callable[[list[GQLError]], list[GQLError]]] = None,
+        result_wrappers: RESULT_WRAPPERS = None,
     ):
         self.python_to_display_map: dict[str, str] = {}
         self.use_camel_case = use_camel_case
@@ -167,6 +158,7 @@ class SchemaBuilder:
             query_model=query_model(),
             mutation_model=mutation_model() if mutation_model else None,
             process_errors=process_errors,
+            result_wrappers=result_wrappers,
         )
 
     @classmethod
@@ -181,6 +173,7 @@ class SchemaBuilder:
         info_cls: T.Type[InfoType] | None = None,
         introspection_cache_max_len: int | None = None,
         process_errors: T.Optional[T.Callable[[list[GQLError]], list[GQLError]]] = None,
+        result_wrappers: RESULT_WRAPPERS = None,
     ):
         schema_builder = SchemaBuilder(
             use_camel_case=use_camel_case,
@@ -189,6 +182,7 @@ class SchemaBuilder:
             mutation_models=mutation_models,
             info_cls=info_cls,
             process_errors=process_errors,
+            result_wrappers=result_wrappers,
         )
         return schema_builder._build_router(
             allow_graphiql=allow_graphiql,
@@ -646,13 +640,16 @@ class SchemaBuilder:
             else:
                 serialized_errors = None
             start = time.time()
-            json_r = ORJSONResponse(
-                {
-                    "data": res.data,
-                    "errors": serialized_errors,
-                    "extensions": res.extensions,
-                }
-            )
+            result_d = {
+                "data": res.data,
+                "errors": serialized_errors,
+                "extensions": res.extensions,
+            }
+            for wrapper in self.executor.result_wrappers:
+                res = wrapper(request_data, res, result_d, request, response)
+                if inspect.isawaitable(res):
+                    res = await res
+            json_r = ORJSONResponse(result_d)
             print(f"json response parsing took {(time.time() - start) * 1000:.2f} ms")
             return json_r
 

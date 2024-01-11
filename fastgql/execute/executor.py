@@ -14,6 +14,7 @@ from fastgql.execute.utils import (
     InfoType,
     ContextType,
     gql_errors_to_graphql_errors,
+    RESULT_WRAPPERS,
 )
 from fastgql.execute.resolver import Resolver
 
@@ -31,6 +32,7 @@ class Executor:
         mutation_model: GQL | None,
         root_nodes_cache_size: int = 100,
         process_errors: T.Optional[T.Callable[[list[GQLError]], list[GQLError]]] = None,
+        result_wrappers: RESULT_WRAPPERS = None,
     ):
         self.python_to_display_map = python_to_display_map
         self.display_to_python_map = {
@@ -46,6 +48,7 @@ class Executor:
             cache_len=root_nodes_cache_size
         )
         self.process_errors = process_errors
+        self.result_wrappers = result_wrappers
 
         DISPLAY_TO_PYTHON_MAP.update(self.display_to_python_map)
 
