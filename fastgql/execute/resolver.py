@@ -285,8 +285,6 @@ class Resolver:
             model = operation_type_to_model[root_node.type]
             if not model:
                 raise Exception(f"{root_node.type} type required.")
-            if root_node.type == M.OperationType.query:
-                self.request.state.contains_mutation = True
             proms.append(
                 self.resolve_node(
                     node=root_node,

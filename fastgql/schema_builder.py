@@ -592,6 +592,7 @@ class SchemaBuilder:
                 )
 
             request.state.operation_name = request_data.operation_name
+            request.state.contains_mutation = request_data.query.startswith('mutation')
 
             if (
                 request_data.operation_name == "IntrospectionQuery"
