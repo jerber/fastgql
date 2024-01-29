@@ -50,6 +50,7 @@ class GQLError(Exception):
         path: tuple[str, ...] | None = None,
         original_error: Exception | None = None,
         extensions: dict[str, T.Any] | None = None,
+        capture_exception: bool = False,
     ):
         super().__init__(message)
         self.message = message
@@ -57,6 +58,7 @@ class GQLError(Exception):
         self.path = path
         self.original_error = original_error
         self.extensions = extensions
+        self.capture_exception = capture_exception
 
 
 __all__ = ["GQL", "GQLInput", "GQLConfigDict", "GQLError", "GQLInterface"]
