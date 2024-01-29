@@ -111,7 +111,11 @@ def combine_models(name: str, *models: T.Type[GQL]) -> T.Type[GQL]:
     return combined_model
 
 
-def parse_value(variables: dict[str, T.Any] | None, v: T.Any) -> T.Any:
+def parse_value(
+    variables: dict[str, T.Any] | None,
+    v: T.Any,
+    raise_exception_if_variable_not_given: bool = False,
+) -> T.Any:
     if isinstance(v, dict):
         return {
             k: parse_value(variables=variables, v=inner_v) for k, inner_v in v.items()
@@ -119,7 +123,11 @@ def parse_value(variables: dict[str, T.Any] | None, v: T.Any) -> T.Any:
     if isinstance(v, list):
         return [parse_value(variables=variables, v=inner_v) for inner_v in v]
     if isinstance(v, graphql.VariableNode):
-        return variables[v.name.value]
+        if val := variables.get(v.name.value):
+            return val
+        if raise_exception_if_variable_not_given:
+            raise Exception(f"Variable {v.name.value} was not given.")
+        return None
     return v
 
 
