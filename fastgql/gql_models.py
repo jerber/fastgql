@@ -50,7 +50,7 @@ class GQLError(Exception):
         path: tuple[str, ...] | None = None,
         original_error: Exception | None = None,
         extensions: dict[str, T.Any] | None = None,
-        capture_exception: bool = False,
+        capture_exception: bool = True,
     ):
         super().__init__(message)
         self.message = message
