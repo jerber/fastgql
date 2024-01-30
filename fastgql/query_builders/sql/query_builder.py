@@ -13,6 +13,13 @@ class PostgresDriver(str, Enum):
     ASYNCPG = "ASYNCPG"
 
 
+ListT = T.TypeVar("ListT")
+
+
+def chunk_list(lst: list[ListT], chunk_size: int) -> list[list[ListT]]:
+    return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
+
+
 def split_text_around_where(text: str) -> tuple[str, str | None]:
     # Regex pattern to split the string around 'where' (case-insensitive)
     pattern = r"(?i)\bwhere\b"
@@ -260,9 +267,9 @@ class QueryBuilder(BaseModel):
         new_path: tuple[str, ...],
         table_alias: str,
         order_fields_alphabetically: bool,
-    ) -> tuple[str, dict[str, T.Any]]:
+    ) -> tuple[list[str], dict[str, T.Any]]:
         variables = self.variables.copy()
-        subquery_strs = [
+        subquery_strs: list[str] = [
             self.build_subquery(
                 name=sel_sub.name,
                 qb=sel_sub.qb,
@@ -274,7 +281,7 @@ class QueryBuilder(BaseModel):
             for sel_sub in self.selections
             if isinstance(sel_sub, SelectionSub)
         ]
-        selection_strs = [
+        selection_strs: list[str] = [
             f"'{sel.name}', {sel.path}"
             for sel in self.selections
             if isinstance(sel, SelectionField)
@@ -284,8 +291,8 @@ class QueryBuilder(BaseModel):
             all_fields_strs.sort()
         if not all_fields_strs:
             raise QueryBuilderError(f"Query Builder {self=} has no fields.")
-        fields_s = ", ".join(all_fields_strs)
-        return fields_s, variables
+
+        return all_fields_strs, variables
 
     def build_filter_parts_s(self) -> str:
         filter_parts: list[str] = []
@@ -326,7 +333,7 @@ class QueryBuilder(BaseModel):
         if not path:
             if table_alias.lower() == self.table_name.lower().replace('"', ""):
                 table_alias = f"_{table_alias}"
-        fields_s, variables = self.build_fields_s(
+        strs_list, variables = self.build_fields_s(
             new_path=new_path,
             table_alias=table_alias,
             order_fields_alphabetically=order_fields_alphabetically,
@@ -344,11 +351,19 @@ class QueryBuilder(BaseModel):
         cte_str = ",\n".join([cte.cte_str for cte in self.ctes])
         cte_join_str = "\n".join([cte.join_str for cte in self.ctes])
 
+        # now build the json objects by chunking the keys + vals at 50
+        chunks = chunk_list(lst=strs_list, chunk_size=50)
+        if len(chunks) == 1:
+            json_obj_str = f'json_build_object({", ".join(chunks[0])})'
+        else:
+            json_obj_strs: list[str] = []
+            for chunk in chunks:
+                json_obj_strs.append(f'jsonb_build_object({", ".join(chunk)})')
+            json_obj_str = " || ".join(json_obj_strs)
+
         s = f"""
 {cte_str}
-SELECT json_build_object(
-    {fields_s}
-) AS {table_alias}_json
+SELECT {json_obj_str} AS {table_alias}_json
 {self.from_}
 {cte_join_str}
 {filter_parts_s}
