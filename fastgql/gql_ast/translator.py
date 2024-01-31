@@ -252,6 +252,19 @@ class Translator:
                     if isinstance(root_type, graphql.GraphQLEnumType):
                         gql_field_temp = getattr(gql_field_type, "of_type")
                         while not hasattr(gql_field_temp, "_field_info"):
+                            # TODO not sure if this is okay
+                            if not hasattr(gql_field_temp, 'of_type'):
+                                return FieldNodeField(
+                                    id=uuid.uuid4(),
+                                    original_node=node,
+                                    children=children,
+                                    name=name,
+                                    alias=alias,
+                                    display_name=display_name,
+                                    arguments=arguments,
+                                    annotation=annotation,
+                                    field=None
+                                )
                             gql_field_temp = getattr(gql_field_temp, "of_type")
                         return FieldNodeField(
                             id=uuid.uuid4(),
