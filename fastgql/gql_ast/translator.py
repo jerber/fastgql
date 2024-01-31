@@ -245,8 +245,25 @@ class Translator:
                 root_type = self.get_root_type(gql_field)
                 if isinstance(root_type, graphql.GraphQLUnionType):
                     models = [t._pydantic_model for t in root_type.types]
-                else:
+                elif hasattr(root_type, "_pydantic_model"):
                     models = [root_type._pydantic_model]
+                else:
+                    # hacky fix because the enum wasn't being registered
+                    if isinstance(root_type, graphql.GraphQLEnumType):
+                        gql_field_temp = getattr(gql_field_type, "of_type")
+                        while not hasattr(gql_field_temp, "_field_info"):
+                            gql_field_temp = getattr(gql_field_temp, "of_type")
+                        return FieldNodeField(
+                            id=uuid.uuid4(),
+                            original_node=node,
+                            children=children,
+                            name=name,
+                            alias=alias,
+                            display_name=display_name,
+                            arguments=arguments,
+                            annotation=annotation,
+                            field=gql_field_temp._field_info,
+                        )
                 # otherwise, this will be an object type
                 return FieldNodeModel(
                     id=uuid.uuid4(),
