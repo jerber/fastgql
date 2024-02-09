@@ -86,6 +86,8 @@ class QueryBuilder(BaseModel):
     full_query_str: str | None = None
     pattern_to_replace: str | None = None
 
+    is_count: bool = False
+
     @staticmethod
     def build_child_var_name(
         child_name: str, var_name: str, variables_to_use: dict[str, T.Any]
@@ -321,7 +323,14 @@ class QueryBuilder(BaseModel):
         parent_table_alias: str | None,
         path: tuple[str, ...] | None,
         order_fields_alphabetically: bool = True,
+        is_count: bool | None = None,
     ) -> tuple[str, dict[str, T.Any]]:
+        is_count = is_count if is_count is not None else self.is_count
+        if is_count:
+            if self.limit is not None:
+                raise QueryBuilderError("Cannot be is_count and have a limit.")
+            if self.offset is not None:
+                raise QueryBuilderError("Cannot be is_count and have an offset.")
         if path:
             new_path = (*path, self.table_name)
         else:
@@ -360,7 +369,8 @@ class QueryBuilder(BaseModel):
             for chunk in chunks:
                 json_obj_strs.append(f'jsonb_build_object({", ".join(chunk)})')
             json_obj_str = " || ".join(json_obj_strs)
-
+        if is_count:
+            json_obj_str = f"COUNT({json_obj_str})"
         s = f"""
 {cte_str}
 SELECT {json_obj_str} AS {table_alias}_json
@@ -369,12 +379,13 @@ SELECT {json_obj_str} AS {table_alias}_json
 {filter_parts_s}
 """.strip()
         if self.cardinality == Cardinality.MANY:
-            s = f"""
-SELECT COALESCE(json_agg({table_alias}_json), '[]'::json) AS {table_alias}_json_agg
-FROM (
-    {s}
-) as {table_alias}_json_sub
-            """.strip()
+            if is_count is not True:
+                s = f"""
+    SELECT COALESCE(json_agg({table_alias}_json), '[]'::json) AS {table_alias}_json_agg
+    FROM (
+        {s}
+    ) as {table_alias}_json_sub
+                """.strip()
         if self.full_query_str:
             s = self.full_query_str.replace(self.pattern_to_replace, s)
         # now replace the values
@@ -390,11 +401,13 @@ FROM (
         parent_table_alias: str = None,
         path: tuple[str, ...] = None,
         driver: PostgresDriver = PostgresDriver.SQLALCHEMY,
+        is_count: bool | None = None,
     ) -> tuple[str, dict[T.Any]]:
         rr = self.build(
             order_fields_alphabetically=order_fields_alphabetically,
             parent_table_alias=parent_table_alias,
             path=path,
+            is_count=is_count,
         )
         s, v = rr
         if v:
