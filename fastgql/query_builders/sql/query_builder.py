@@ -338,7 +338,7 @@ class QueryBuilder(BaseModel):
         if self.table_alias:
             table_alias = self.table_alias
         else:
-            table_alias = "__".join(new_path).replace('"', "")
+            table_alias = "__".join(new_path).replace('"', "").replace(".", '__')
         if not path:
             if table_alias.lower() == self.table_name.lower().replace('"', ""):
                 table_alias = f"_{table_alias}"
