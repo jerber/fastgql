@@ -51,6 +51,12 @@ class Cardinality(str, Enum):
 class Selection(BaseModel):
     name: str
 
+    @property
+    def is_simple_column(self) -> bool:
+        if not isinstance(self, SelectionField):
+            return False
+        return self.name == self.path or self.path == f"$current.{self.name}"
+
 
 class SelectionField(Selection):
     path: str
@@ -338,7 +344,7 @@ class QueryBuilder(BaseModel):
         if self.table_alias:
             table_alias = self.table_alias
         else:
-            table_alias = "__".join(new_path).replace('"', "").replace(".", '__')
+            table_alias = "__".join(new_path).replace('"', "").replace(".", "__")
         if not path:
             if table_alias.lower() == self.table_name.lower().replace('"', ""):
                 table_alias = f"_{table_alias}"
