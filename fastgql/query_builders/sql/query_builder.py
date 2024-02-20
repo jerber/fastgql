@@ -70,6 +70,7 @@ class SelectionSub(Selection):
 class CTE(BaseModel):
     cte_str: str
     join_str: str
+    is_top_level: bool = True
 
 
 class QueryBuilder(BaseModel):
@@ -324,12 +325,20 @@ class QueryBuilder(BaseModel):
             s = s.replace("$parent", parent_table_alias)
         return s
 
+    def get_top_level_ctes(self) -> list[CTE]:
+        ctes = [cte for cte in self.ctes if cte.is_top_level]
+        for sel_sub in self.selections:
+            if isinstance(sel_sub, SelectionSub):
+                ctes.extend(sel_sub.qb.get_top_level_ctes())
+        return ctes
+
     def build(
         self,
         parent_table_alias: str | None,
         path: tuple[str, ...] | None,
         order_fields_alphabetically: bool = True,
         is_count: bool | None = None,
+        use_top_level_ctes: bool = True,
     ) -> tuple[str, dict[str, T.Any]]:
         is_count = is_count if is_count is not None else self.is_count
         if is_count:
@@ -363,8 +372,14 @@ class QueryBuilder(BaseModel):
         if not self.from_ or not self.from_.lower().startswith("from "):
             self.from_ = f"FROM {self.table_name} {table_alias} {self.from_}"
 
-        cte_str = ",\n".join([cte.cte_str for cte in self.ctes])
-        cte_join_str = "\n".join([cte.join_str for cte in self.ctes])
+        # if this is the top level, use top level CTES. Otherwise, ignore them
+        if use_top_level_ctes:
+            ctes_to_use = self.get_top_level_ctes()
+        else:
+            ctes_to_use = [cte for cte in self.ctes if not cte.is_top_level]
+
+        cte_str = ",\n".join([cte.cte_str for cte in ctes_to_use])
+        cte_join_str = "\n".join([cte.join_str for cte in ctes_to_use])
 
         # now build the json objects by chunking the keys + vals at 50
         chunks = chunk_list(lst=strs_list, chunk_size=50)
@@ -427,28 +442,6 @@ SELECT {json_obj_str} AS {table_alias}_json
                 raise QueryBuilderError(f"Unknown driver: {driver=}.")
         else:
             variables = {}
-        if format_sql:
-            s = sqlparse.format(s, reindent=True, keyword_case="upper")
-        return s, variables
-
-    def build_root_asyncpg(
-        self,
-        format_sql: bool = False,
-        order_fields_alphabetically: bool = False,
-        parent_table_alias: str = None,
-        path: tuple[str, ...] = None,
-    ) -> tuple[str, tuple[T.Any]]:
-        """legacy"""
-        rr = self.build(
-            order_fields_alphabetically=order_fields_alphabetically,
-            parent_table_alias=parent_table_alias,
-            path=path,
-        )
-        s, v = rr
-        if v:
-            s, variables = self.prepare_query_asyncpg(sql=s, params=v)
-        else:
-            variables = tuple()
         if format_sql:
             s = sqlparse.format(s, reindent=True, keyword_case="upper")
         return s, variables
