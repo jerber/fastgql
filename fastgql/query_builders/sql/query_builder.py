@@ -124,10 +124,10 @@ class QueryBuilder(BaseModel):
         if not variables:
             return self
         if not replace:
-            for k in variables.keys():
-                if k in self.variables:
+            for k, v in variables.items():
+                if k in self.variables and v != self.variables[k]:
                     raise QueryBuilderError(
-                        f"Key {k} already exists in variables so you cannot add it. "
+                        f"Key '{k}' already exists in variables so you cannot add it. "
                         f"If you'd like to replace it, pass replace."
                     )
         self.variables.update(variables)
