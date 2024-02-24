@@ -55,7 +55,7 @@ class Selection(BaseModel):
     def is_simple_column(self) -> bool:
         if not isinstance(self, SelectionField):
             return False
-        return self.name == self.path or self.path == f"$current.{self.name}"
+        return self.name == self.path or self.path == f"$current.{self.name}" or self.path == f'"{self.path}"' or self.path == f'$current."{self.name}"'
 
 
 class SelectionField(Selection):
@@ -533,7 +533,7 @@ SELECT {json_obj_str} AS {table_alias}_json
         self, name: str, path: str = None, variables: dict[str, T.Any] | None = None
     ) -> "QueryBuilder":
         if not path:
-            path = f"$current.{name}"
+            path = f'$current."{name}"'
         self.add_variables(variables)
         self.selections.append(
             SelectionField(name=name, path=path, variables=variables)
