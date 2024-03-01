@@ -291,7 +291,7 @@ class SchemaBuilder:
 
     @functools.cache
     def field_info_to_gql_field(
-        self, field_info: FieldInfo, is_input: bool
+        self, field_info: FieldInfo, is_input: bool, description: str | None = None
     ) -> graphql.GraphQLField | graphql.GraphQLInputField:
         a = field_info.annotation
         nullable = (
@@ -303,7 +303,7 @@ class SchemaBuilder:
         type_._field_info = field_info
         if not is_input:
             field = graphql.GraphQLField(
-                type_=type_, description=field_info.description
+                type_=type_, description=description or field_info.description
             )
         else:
             # if nullable and default value is None, do not give a default value
@@ -318,7 +318,7 @@ class SchemaBuilder:
                 )
             field = graphql.GraphQLInputField(
                 type_=type_,
-                description=field_info.description,
+                description=description or field_info.description,
                 default_value=default_value,
             )
         return field
@@ -393,6 +393,7 @@ class SchemaBuilder:
         self,
         model: ModelType,
     ) -> dict[str, graphql.GraphQLField | graphql.GraphQLInputField]:
+        descriptions_by_name = getattr(model, '_descriptions', {})
         gql_fields: dict[str, graphql.GraphQLField | graphql.GraphQLInputField] = {}
         attrs = [a for a in set(dir(model)) - DIRS_TO_IGNORE if not a.startswith("_")]
         for attr in attrs:
@@ -415,7 +416,7 @@ class SchemaBuilder:
             field = graphql.GraphQLField(
                 type_=_return_type,
                 args=args,
-                description=func.__doc__,
+                description=descriptions_by_name.get(attr, func.__doc__),
                 # resolve=wrap_pydantic_resolver(func),
                 resolve=func,
             )
@@ -430,11 +431,12 @@ class SchemaBuilder:
         self, model: ModelType, is_input: bool
     ) -> dict[str, graphql.GraphQLField | graphql.GraphQLInputField]:
         gql_fields: dict[str, graphql.GraphQLField | graphql.GraphQLInputField] = {}
+        descriptions_by_name: dict[str, str] = getattr(model, '_descriptions', {})
         for field_name, field_info in model.model_fields.items():
             if self.use_aliases:
                 field_name = field_info.alias or field_name
             gql_field = self.field_info_to_gql_field(
-                field_info=field_info, is_input=is_input
+                field_info=field_info, is_input=is_input, description=descriptions_by_name.get(field_name)
             )
             if resolver := (getattr(field_info, "json_schema_extra") or {}).get(
                 "resolver"
