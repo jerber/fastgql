@@ -1,6 +1,7 @@
 import typing as T
 from collections import OrderedDict
 import hashlib
+import re
 import time
 import types
 import datetime
@@ -68,14 +69,26 @@ class MissingQueryError(Exception):
         super().__init__(message)
 
 
+def get_operation_name(graphql_query: str) -> str | None:
+    # Define a regex pattern to match the operation name
+    pattern = r"^(query|mutation|subscription)\s+(\w+)"
+    match = re.search(pattern, graphql_query.strip())
+    if match:
+        return match.group(2)
+    return None
+
+
 def parse_request_data(data: T.Mapping[str, T.Any]) -> GraphQLRequestData:
     query = data.get("query")
     if not query:
         raise MissingQueryError()
+    operation_name = data.get("operationName")
+    if not operation_name:
+        operation_name = get_operation_name(query)
     return GraphQLRequestData(
         query=query,
         variables=data.get("variables"),
-        operation_name=data.get("operationName"),
+        operation_name=operation_name,
     )
 
 
@@ -393,7 +406,7 @@ class SchemaBuilder:
         self,
         model: ModelType,
     ) -> dict[str, graphql.GraphQLField | graphql.GraphQLInputField]:
-        descriptions_by_name = getattr(model, '_descriptions', {})
+        descriptions_by_name = getattr(model, "_descriptions", {})
         gql_fields: dict[str, graphql.GraphQLField | graphql.GraphQLInputField] = {}
         attrs = [a for a in set(dir(model)) - DIRS_TO_IGNORE if not a.startswith("_")]
         for attr in attrs:
@@ -431,12 +444,14 @@ class SchemaBuilder:
         self, model: ModelType, is_input: bool
     ) -> dict[str, graphql.GraphQLField | graphql.GraphQLInputField]:
         gql_fields: dict[str, graphql.GraphQLField | graphql.GraphQLInputField] = {}
-        descriptions_by_name: dict[str, str] = getattr(model, '_descriptions', {})
+        descriptions_by_name: dict[str, str] = getattr(model, "_descriptions", {})
         for field_name, field_info in model.model_fields.items():
             if self.use_aliases:
                 field_name = field_info.alias or field_name
             gql_field = self.field_info_to_gql_field(
-                field_info=field_info, is_input=is_input, description=descriptions_by_name.get(field_name)
+                field_info=field_info,
+                is_input=is_input,
+                description=descriptions_by_name.get(field_name),
             )
             if resolver := (getattr(field_info, "json_schema_extra") or {}).get(
                 "resolver"
